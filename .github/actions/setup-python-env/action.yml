@@ -27,7 +27,7 @@ runs:
 
     - name: Install Python dependencies
       run: |
-        uv pip install -e ".[dev]"
         uv sync --frozen
+        uv pip install -e ".[dev]"
         uv run pre-commit install
       shell: bash
