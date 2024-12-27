@@ -1,6 +1,6 @@
 [project]
 name = "krona"
-version = "0.0.1"
+version = "0.0.2"
 description = "KRONA Rapidly Organizes Nordic Assets - Transaction tool for Swedish brokers"
 authors = [{ name = "Martin Sjöborg", email = "martin@sjoborg.org" }]
 readme = "README.md"
