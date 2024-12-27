@@ -1,15 +1,15 @@
-# stonks
+# krona
 
-[![Release](https://img.shields.io/github/v/release/Sjoeborg/stonks)](https://img.shields.io/github/v/release/Sjoeborg/stonks)
-[![Build status](https://img.shields.io/github/actions/workflow/status/Sjoeborg/stonks/main.yml?branch=main)](https://github.com/Sjoeborg/stonks/actions/workflows/main.yml?query=branch%3Amain)
-[![codecov](https://codecov.io/gh/Sjoeborg/stonks/branch/main/graph/badge.svg)](https://codecov.io/gh/Sjoeborg/stonks)
-[![Commit activity](https://img.shields.io/github/commit-activity/m/Sjoeborg/stonks)](https://img.shields.io/github/commit-activity/m/Sjoeborg/stonks)
-[![License](https://img.shields.io/github/license/Sjoeborg/stonks)](https://img.shields.io/github/license/Sjoeborg/stonks)
+[![Release](https://img.shields.io/github/v/release/Sjoeborg/krona)](https://img.shields.io/github/v/release/Sjoeborg/krona)
+[![Build status](https://img.shields.io/github/actions/workflow/status/Sjoeborg/krona/main.yml?branch=main)](https://github.com/Sjoeborg/krona/actions/workflows/main.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/Sjoeborg/krona/branch/main/graph/badge.svg)](https://codecov.io/gh/Sjoeborg/krona)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/Sjoeborg/krona)](https://img.shields.io/github/commit-activity/m/Sjoeborg/krona)
+[![License](https://img.shields.io/github/license/Sjoeborg/krona)](https://img.shields.io/github/license/Sjoeborg/krona)
 
 Transaction tool for Swedish brokers
 
-- **Github repository**: <https://github.com/Sjoeborg/stonks/>
-- **Documentation** <https://Sjoeborg.github.io/stonks/>
+- **Github repository**: <https://github.com/Sjoeborg/krona/>
+- **Documentation** <https://Sjoeborg.github.io/krona/>
 
 ## Getting started with your project
 
@@ -21,7 +21,7 @@ First, create a repository on GitHub with the same name as this project, and the
 git init -b main
 git add .
 git commit -m "init commit"
-git remote add origin git@github.com:Sjoeborg/stonks.git
+git remote add origin git@github.com:Sjoeborg/krona.git
 git push -u origin main
 ```
 
@@ -63,8 +63,8 @@ To enable the code coverage reports, see [here](https://fpgmaas.github.io/cookie
 ## Releasing a new version
 
 - Create an API Token on [PyPI](https://pypi.org/).
-- Add the API Token to your projects secrets with the name `PYPI_TOKEN` by visiting [this page](https://github.com/Sjoeborg/stonks/settings/secrets/actions/new).
-- Create a [new release](https://github.com/Sjoeborg/stonks/releases/new) on Github.
+- Add the API Token to your projects secrets with the name `PYPI_TOKEN` by visiting [this page](https://github.com/Sjoeborg/krona/settings/secrets/actions/new).
+- Create a [new release](https://github.com/Sjoeborg/krona/releases/new) on Github.
 - Create a new tag in the form `*.*.*`.
 
 For more details, see [here](https://fpgmaas.github.io/cookiecutter-uv/features/cicd/#how-to-trigger-a-release).
