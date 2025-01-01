@@ -18,5 +18,11 @@ class BaseParser(ABC):
         pass
 
     def to_float(self, value: str) -> float:
-        """Convert a string to a float, regardles of the decimal separator."""
-        return float(value.replace(" ", "").replace(",", "."))
+        """Convert a string to a float, regardles of the decimal separator.
+
+        If the value is an empty string, return 0.0.
+        """
+        cleaned_value = value.replace(" ", "").replace(",", ".")
+        if cleaned_value == "":
+            return 0.0
+        return float(cleaned_value)

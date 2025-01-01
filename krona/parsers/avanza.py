@@ -35,10 +35,10 @@ class AvanzaParser(BaseParser):
                 yield Transaction(
                     date=datetime.strptime(row["Datum"], "%Y-%m-%d"),
                     symbol=row["Värdepapper/beskrivning"],
-                    transaction_type=TransactionType(row["Typ av transaktion"].lower()),
+                    transaction_type=TransactionType.from_term(row["Typ av transaktion"]),
                     currency=row["Transaktionsvaluta"],
                     ISIN=row["ISIN"],
-                    quantity=self.to_float(row["Antal"]),
-                    amount=self.to_float(row["Kurs"]),
-                    fees=self.to_float(row.get("Courtage (SEK)", "0")),
+                    quantity=abs(int(row["Antal"])),
+                    price=abs(self.to_float(row["Kurs"])),
+                    fees=abs(self.to_float(row["Courtage (SEK)"])),
                 )

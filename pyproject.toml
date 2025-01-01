@@ -6,13 +6,16 @@ authors = [{ name = "Martin Sjöborg", email = "martin@sjoborg.org" }]
 readme = "README.md"
 keywords = ['python']
 requires-python = ">=3.12"
+dependencies = [
+    "thefuzz>=0.22.1",
+]
 
 [project.urls]
 Homepage = "https://Sjoeborg.github.io/krona/"
 Repository = "https://github.com/Sjoeborg/krona"
 Documentation = "https://Sjoeborg.github.io/krona/"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=7.2.0",
     "pre-commit>=2.20.0",
@@ -40,6 +43,11 @@ show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "split",
+]
+log_cli = true
+log_cli_level = "DEBUG"
 
 [tool.ruff]
 target-version = "py313"
@@ -76,8 +84,6 @@ select = [
     "UP",
     # ruff
     "RUF",
-    # tryceratops
-    "TRY",
 ]
 ignore = [
     # LineTooLong

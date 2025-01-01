@@ -1,4 +1,4 @@
-from krona.models.action import CorporateAction, CorporateActionType
+from krona.models.transaction import Transaction, TransactionType
 from krona.processor.transaction import TransactionProcessor
 
 
@@ -7,20 +7,16 @@ class ActionProcessor:
 
     def __init__(self, transaction_processor: TransactionProcessor) -> None:
         self._transaction_processor = transaction_processor
-        self._actions: list[CorporateAction] = []
+        self._actions: list[Transaction] = []
 
-    def process_action(self, action: CorporateAction) -> None:
+    def process_action(self, action: Transaction) -> None:
         """Apply corporate action to existing positions"""
-        if action.action_type == CorporateActionType.SPLIT:
-            self._handle_split(action)
-        elif action.action_type == CorporateActionType.SPINOFF:
-            self._handle_spinoff(action)
-        # etc.
+        match action.transaction_type:
+            case TransactionType.SPLIT:
+                self._handle_split(action)
+            case _:
+                raise ValueError(f"Unknown action type: {action.transaction_type}")
 
-    def _handle_split(self, action: CorporateAction) -> None:
+    def _handle_split(self, action: Transaction) -> None:
         """Complex logic for handling stock splits"""
-        pass
-
-    def _handle_spinoff(self, action: CorporateAction) -> None:
-        """Complex logic for handling spinoffs"""
         pass

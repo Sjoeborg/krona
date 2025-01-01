@@ -1,24 +1,18 @@
-"""Classes for corporate actions (Split, Spinoff, Rename)
-Represents a corporate action, immutable and with minimal logic
-"""
-
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
 
-class CorporateActionType(Enum):
-    SPLIT = "split"
-    SPINOFF = "spinoff"
-    RENAME = "rename"
+class ActionType(Enum):
+    SPLIT = "SPLIT"
 
 
 @dataclass
-class CorporateAction:
-    """Represents a corporate action, immutable and with minimal logic"""
-
+class Action:
     date: datetime
-    action_type: CorporateActionType
+    type: ActionType
     old_symbol: str
     new_symbol: str
-    ratio: float | None = None  # For splits and spinoffs
+    old_ISIN: str
+    new_ISIN: str
+    ratio: float
