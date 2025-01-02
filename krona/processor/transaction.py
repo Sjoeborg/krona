@@ -1,6 +1,6 @@
 import logging
 
-from thefuzz import process
+from thefuzz import process  # type: ignore
 
 from krona.models.action import Action, ActionType
 from krona.models.position import Position
@@ -13,13 +13,13 @@ class TransactionProcessor:
     """Handles business logic for transactions"""
 
     def __init__(self) -> None:
-        self._positions: dict[str, Position] = {}
+        self.positions: dict[str, Position] = {}
         self.buffer: list[Transaction] = []
-        self._actions: list[Action] = []
+        self.actions: list[Action] = []
 
     def _insert_position(self, transaction: Transaction) -> None:
         """Insert a new transaction into the positions"""
-        self._positions[transaction.symbol] = Position(
+        self.positions[transaction.symbol] = Position(
             symbol=transaction.symbol,
             ISIN=transaction.ISIN,
             currency=transaction.currency,
@@ -31,11 +31,11 @@ class TransactionProcessor:
             fees=transaction.fees,
         )
         if transaction.transaction_type == TransactionType.SPLIT:
-            self._handle_split(transaction)
+            _split = self._handle_split(transaction)
 
     def _update_position(self, transaction: Transaction, symbol: str) -> None:
         """Update an existing position with a new transaction"""
-        position = self._positions[symbol]
+        position = self.positions[symbol]
 
         match transaction.transaction_type:
             case TransactionType.BUY:
@@ -76,9 +76,9 @@ class TransactionProcessor:
 
     def _match_symbol(self, symbol: str) -> str | None:
         """Fuzzy matching for symbols"""
-        if symbol in self._positions:
+        if symbol in self.positions:
             return symbol
-        matches = process.extractOne(symbol, self._positions.keys(), score_cutoff=80)
+        matches: tuple[str, int] | None = process.extractOne(symbol, self.positions.keys(), score_cutoff=80)
         if matches is None:
             logger.debug(f"No match for {symbol}")
             return None
@@ -90,7 +90,7 @@ class TransactionProcessor:
         # TODO: should we buffer the transaction or the action?
         if len(self.buffer) == 0:
             self.buffer.append(transaction)
-            return
+            return None
         else:
             previous_transaction = self.buffer.pop()
             split_ratio = previous_transaction.quantity / transaction.quantity
@@ -103,5 +103,5 @@ class TransactionProcessor:
                 type=ActionType.SPLIT,
                 ratio=split_ratio,
             )
-            self._actions.append(split)
+            self.actions.append(split)
             return split
