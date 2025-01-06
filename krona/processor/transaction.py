@@ -93,7 +93,7 @@ class TransactionProcessor:
             return None
         else:
             previous_transaction = self.buffer.pop()
-            split_ratio = previous_transaction.quantity / transaction.quantity
+            split_ratio = transaction.quantity / previous_transaction.quantity
             split = Action(
                 date=transaction.date,
                 new_symbol=transaction.symbol,

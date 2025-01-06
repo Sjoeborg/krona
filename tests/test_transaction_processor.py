@@ -75,8 +75,7 @@ def test_nordnet_processor(nordnet_file: str, nordnet_parser: NordnetParser, cap
         processor.add_transaction(transaction)
         print(transaction)
 
-    # print(processor.positions["BAHN B.OLD/X"])
-    assert processor.positions["BAHN B.OLD/X"].quantity == 300
+    assert processor.positions["BAHN B.OLD/X"].quantity == 0
     # Capture and print the output
     out, err = capfd.readouterr()
     print(out)
@@ -131,20 +130,20 @@ def test_split(capfd):
     for transaction in transactions[0:3]:
         processor.add_transaction(transaction)
 
-    assert processor.positions["BAHN B.OLD/X"].quantity == int(transactions[0].quantity * 10)
+    assert processor.positions["BAHN B.OLD/X"].quantity == int(transactions[0].quantity / 10)
     assert processor.positions["BAHN B.OLD/X"].fees == transactions[0].fees
-    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round(transactions[0].price / 10, 2)
+    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round(transactions[0].price * 10, 2)
 
     processor.add_transaction(transactions[3])
 
-    assert processor.positions["BAHN B.OLD/X"].quantity == int(transactions[0].quantity * 10) + transactions[3].quantity
+    assert processor.positions["BAHN B.OLD/X"].quantity == int(transactions[0].quantity / 10) + transactions[3].quantity
     assert processor.positions["BAHN B.OLD/X"].fees == transactions[0].fees + transactions[3].fees
     assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round(
         (
-            transactions[0].price / 10 * int(transactions[0].quantity * 10)
+            transactions[0].price * 10 * int(transactions[0].quantity / 10)
             + transactions[3].price * transactions[3].quantity
         )
-        / (int(transactions[0].quantity * 10) + transactions[3].quantity),
+        / (int(transactions[0].quantity / 10) + transactions[3].quantity),
         2,
     )
     print(processor.positions["BAHN B.OLD/X"])
