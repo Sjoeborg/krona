@@ -56,9 +56,9 @@ class TransactionProcessor:
                         f"Split {position.symbol} from {position.quantity} @ {position.price} to {int(position.quantity / split.ratio)} @ {(position.price * split.ratio):.2f}"
                     )
                     # TODO: handle fractional shares
-                    position.price = position.price * split.ratio
-                    position.quantity = int(position.quantity / split.ratio)
-                    position.buy_quantity = int(position.buy_quantity / split.ratio)
+                    position.price = position.price / split.ratio
+                    position.quantity = int(position.quantity * split.ratio)
+                    position.buy_quantity = int(position.buy_quantity * split.ratio)
 
             case _:
                 raise ValueError(f"Unknown transaction type: {transaction.transaction_type}")

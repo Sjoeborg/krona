@@ -3,11 +3,10 @@ from datetime import datetime
 import pytest
 
 from krona.models.transaction import Transaction, TransactionType
-from krona.parsers.nordnet import NordnetParser
 from krona.processor.transaction import TransactionProcessor
 
 
-def test_avanza_processor(capfd):
+def test_transaction_processor(capfd):
     processor = TransactionProcessor()
     transactions = [
         Transaction(
@@ -63,23 +62,6 @@ def test_avanza_processor(capfd):
     assert round(processor.positions["Bahnhof B"].fees, 2) == 34.0
     assert round(processor.positions["Bahnhof B"].dividends, 2) == 0.00
 
-    # Capture and print the output
-    out, err = capfd.readouterr()
-    print(out)
-
-
-def test_nordnet_processor(nordnet_file: str, nordnet_parser: NordnetParser, capfd):
-    transactions = nordnet_parser.parse_file(nordnet_file)
-    processor = TransactionProcessor()
-    for transaction in transactions:
-        processor.add_transaction(transaction)
-        print(transaction)
-
-    assert processor.positions["BAHN B.OLD/X"].quantity == 0
-    # Capture and print the output
-    out, err = capfd.readouterr()
-    print(out)
-
 
 @pytest.mark.split
 def test_split(capfd):
@@ -130,23 +112,12 @@ def test_split(capfd):
     for transaction in transactions[0:3]:
         processor.add_transaction(transaction)
 
-    assert processor.positions["BAHN B.OLD/X"].quantity == int(transactions[0].quantity / 10)
-    assert processor.positions["BAHN B.OLD/X"].fees == transactions[0].fees
-    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round(transactions[0].price * 10, 2)
+    assert processor.positions["BAHN B.OLD/X"].quantity == 230
+    assert processor.positions["BAHN B.OLD/X"].fees == 19.0
+    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == 214.5 / 10
 
     processor.add_transaction(transactions[3])
 
-    assert processor.positions["BAHN B.OLD/X"].quantity == int(transactions[0].quantity / 10) + transactions[3].quantity
-    assert processor.positions["BAHN B.OLD/X"].fees == transactions[0].fees + transactions[3].fees
-    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round(
-        (
-            transactions[0].price * 10 * int(transactions[0].quantity / 10)
-            + transactions[3].price * transactions[3].quantity
-        )
-        / (int(transactions[0].quantity / 10) + transactions[3].quantity),
-        2,
-    )
-    print(processor.positions["BAHN B.OLD/X"])
-    # Capture and print the output
-    out, err = capfd.readouterr()
-    print(out)
+    assert processor.positions["BAHN B.OLD/X"].quantity == 230 + 30
+    assert processor.positions["BAHN B.OLD/X"].fees == 19 * 2
+    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round((214.5 * 23 + 30.1 * 30) / 260, 2)
