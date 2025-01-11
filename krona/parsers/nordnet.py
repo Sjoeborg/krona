@@ -46,9 +46,7 @@ class NordnetParser(BaseParser):
         return set(NORDNET_FIELDNAMES).issubset(set(df.columns))
 
     def parse_file(self, file_path: str) -> Iterator[Transaction]:
-        df = pl.read_csv(file_path, separator="\t", encoding="utf-16", decimal_comma=True).sort(
-            by="Affärsdag", descending=False
-        )
+        df = pl.read_csv(file_path, separator="\t", encoding="utf-16", decimal_comma=True).sort(by="Affärsdag")
         for row in df.iter_rows(named=True):
             yield Transaction(
                 date=datetime.strptime(row["Affärsdag"], "%Y-%m-%d"),
