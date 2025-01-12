@@ -2,9 +2,9 @@ import logging
 
 from thefuzz import process  # type: ignore
 
-from krona.models.action import Action, ActionType
 from krona.models.position import Position
 from krona.models.transaction import Transaction, TransactionType
+from krona.processor.action import ActionProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +14,11 @@ class TransactionProcessor:
 
     def __init__(self) -> None:
         self.positions: dict[str, Position] = {}
-        self.buffer: list[Transaction] = []
-        self.actions: list[Action] = []
+        self.action_processor: ActionProcessor = ActionProcessor()
 
     def _insert_position(self, transaction: Transaction) -> None:
         """Insert a new transaction into the positions"""
-        self.positions[transaction.symbol] = Position(
+        position = Position(
             symbol=transaction.symbol,
             ISIN=transaction.ISIN,
             currency=transaction.currency,
@@ -31,7 +30,8 @@ class TransactionProcessor:
             fees=transaction.fees,
         )
         if transaction.transaction_type == TransactionType.SPLIT:
-            _split = self._handle_split(transaction)
+            self.action_processor.handle_split(transaction, position)
+        self.positions[position.symbol] = position
 
     def _update_position(self, transaction: Transaction, symbol: str) -> None:
         """Update an existing position with a new transaction"""
@@ -39,31 +39,28 @@ class TransactionProcessor:
 
         match transaction.transaction_type:
             case TransactionType.BUY:
-                # TODO: Rethink quantity and buy_quantity
-                position.price = (transaction.price * transaction.quantity + position.price * position.buy_quantity) / (
-                    position.buy_quantity + transaction.quantity
-                )
-                position.quantity += transaction.quantity
-                position.buy_quantity += transaction.quantity
+                self._handle_buy(transaction, position)
             case TransactionType.SELL:
-                position.quantity -= transaction.quantity
+                self._handle_sell(transaction, position)
             case TransactionType.DIVIDEND:
-                position.dividends += transaction.total_amount
+                self._handle_dividend(transaction, position)
             case TransactionType.SPLIT:
-                split = self._handle_split(transaction)
-                if split is not None:
-                    logger.debug(
-                        f"Split {position.symbol} from {position.quantity} @ {position.price} to {int(position.quantity / split.ratio)} @ {(position.price * split.ratio):.2f}"
-                    )
-                    # TODO: handle fractional shares
-                    position.price = position.price / split.ratio
-                    position.quantity = int(position.quantity * split.ratio)
-                    position.buy_quantity = int(position.buy_quantity * split.ratio)
-
-            case _:
-                raise ValueError(f"Unknown transaction type: {transaction.transaction_type}")
+                self.action_processor.handle_split(transaction, position)
         position.fees += transaction.fees
         position.transactions.append(transaction)
+
+    def _handle_buy(self, transaction: Transaction, position: Position) -> None:
+        position.price = (transaction.price * transaction.quantity + position.price * position.buy_quantity) / (
+            position.buy_quantity + transaction.quantity
+        )
+        position.quantity += transaction.quantity
+        position.buy_quantity += transaction.quantity
+
+    def _handle_sell(self, transaction: Transaction, position: Position) -> None:
+        position.quantity -= transaction.quantity
+
+    def _handle_dividend(self, transaction: Transaction, position: Position) -> None:
+        position.dividends += transaction.total_amount
 
     def add_transaction(self, transaction: Transaction) -> None:
         """Process a new transaction and upsert position"""
@@ -84,24 +81,3 @@ class TransactionProcessor:
             return None
         logger.debug(f"Matched {symbol} to {matches}")
         return matches[0]
-
-    def _handle_split(self, transaction: Transaction) -> Action | None:
-        """Complex logic for handling stock splits"""
-        # TODO: should we buffer the transaction or the action?
-        if len(self.buffer) == 0:
-            self.buffer.append(transaction)
-            return None
-        else:
-            previous_transaction = self.buffer.pop()
-            split_ratio = transaction.quantity / previous_transaction.quantity
-            split = Action(
-                date=transaction.date,
-                new_symbol=transaction.symbol,
-                old_symbol=previous_transaction.symbol,
-                new_ISIN=transaction.ISIN,
-                old_ISIN=previous_transaction.ISIN,
-                type=ActionType.SPLIT,
-                ratio=split_ratio,
-            )
-            self.actions.append(split)
-            return split

@@ -6,7 +6,7 @@ from krona.models.transaction import Transaction
 
 @dataclass
 class Position:
-    """Represents a single position, immutable and with minimal logic"""
+    """Represents a single position with minimal logic"""
 
     symbol: str
     ISIN: str
