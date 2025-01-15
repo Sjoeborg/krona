@@ -16,55 +16,11 @@ class TransactionProcessor:
         self.positions: dict[str, Position] = {}
         self.action_processor: ActionProcessor = ActionProcessor()
 
-    def _insert_position(self, transaction: Transaction) -> None:
-        """Insert a new transaction into the positions"""
-        position = Position(
-            symbol=transaction.symbol,
-            ISIN=transaction.ISIN,
-            currency=transaction.currency,
-            quantity=transaction.quantity,
-            buy_quantity=transaction.quantity if transaction.transaction_type == TransactionType.BUY else 0,
-            price=transaction.price,
-            dividends=0 if transaction.transaction_type != TransactionType.DIVIDEND else transaction.total_amount,
-            transactions=[transaction],
-            fees=transaction.fees,
-        )
-        if transaction.transaction_type == TransactionType.SPLIT:
-            self.action_processor.handle_split(transaction, position)
-        self.positions[position.symbol] = position
-
-    def _update_position(self, transaction: Transaction, symbol: str) -> None:
-        """Update an existing position with a new transaction"""
-        position = self.positions[symbol]
-
-        match transaction.transaction_type:
-            case TransactionType.BUY:
-                self._handle_buy(transaction, position)
-            case TransactionType.SELL:
-                self._handle_sell(transaction, position)
-            case TransactionType.DIVIDEND:
-                self._handle_dividend(transaction, position)
-            case TransactionType.SPLIT:
-                self.action_processor.handle_split(transaction, position)
-        position.fees += transaction.fees
-        position.transactions.append(transaction)
-
     def _upsert_position(self, transaction: Transaction, symbol: str | None) -> None:
         """Upsert a position with a new transaction"""
-        if symbol is None:
-            position = Position(
-                symbol=transaction.symbol,
-                ISIN=transaction.ISIN,
-                currency=transaction.currency,
-                quantity=0,
-                buy_quantity=0,
-                price=0,
-                dividends=0,
-                fees=0,
-                transactions=[],
-            )
-        else:
-            position = self.positions[symbol]
+
+        # Create a new position if symbol does not exist, otherwise update the existing position
+        position = Position.new(transaction) if symbol is None else self.positions[symbol]
 
         match transaction.transaction_type:
             case TransactionType.BUY:
@@ -77,6 +33,7 @@ class TransactionProcessor:
                 self.action_processor.handle_split(transaction, position)
         position.fees += transaction.fees
         position.transactions.append(transaction)
+        self.positions[position.symbol] = position
 
     def _handle_buy(self, transaction: Transaction, position: Position) -> None:
         position.price = (transaction.price * transaction.quantity + position.price * position.buy_quantity) / (
@@ -93,13 +50,8 @@ class TransactionProcessor:
 
     def add_transaction(self, transaction: Transaction) -> None:
         """Process a new transaction and upsert position"""
-        # TODO: implement fuzzy matching for symbols
         matched_symbol = self._match_symbol(transaction.symbol)
         self._upsert_position(transaction, matched_symbol)
-        # if matched_symbol is None:
-        #    self._insert_position(transaction)
-        # else:
-        #    self._update_position(transaction, matched_symbol)
 
     def _match_symbol(self, symbol: str) -> str | None:
         """Fuzzy matching for symbols"""

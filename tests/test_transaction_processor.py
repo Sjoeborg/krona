@@ -46,18 +46,13 @@ def test_transaction_processor(capfd):
     assert round(processor.positions["Bahnhof B"].cost_basis, 2) == transactions[0].quantity * transactions[0].price
     assert round(processor.positions["Bahnhof B"].price, 2) == transactions[0].price
     assert round(processor.positions["Bahnhof B"].fees, 2) == transactions[0].fees
-    assert (
-        round(processor.positions["Bahnhof B"].dividends, 2) == 0
-        if transactions[0].transaction_type != TransactionType.DIVIDEND
-        else transactions[0].total_amount
-    )
+    assert round(processor.positions["Bahnhof B"].dividends, 2) == 0
 
     processor.add_transaction(transactions[1])
     processor.add_transaction(transactions[2])
 
     # after 3 transactions
     assert processor.positions["Bahnhof B"].quantity == 91
-    # assert round(processor.positions["Bahnhof B"].cost_basis, 2) == transactions[0].quantity * transactions[0].price + transactions[2].quantity * transactions[2].price
     assert round(processor.positions["Bahnhof B"].price, 2) == 50.1
     assert round(processor.positions["Bahnhof B"].fees, 2) == 34.0
     assert round(processor.positions["Bahnhof B"].dividends, 2) == 0.00
