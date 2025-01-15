@@ -49,6 +49,35 @@ class TransactionProcessor:
         position.fees += transaction.fees
         position.transactions.append(transaction)
 
+    def _upsert_position(self, transaction: Transaction, symbol: str | None) -> None:
+        """Upsert a position with a new transaction"""
+        if symbol is None:
+            position = Position(
+                symbol=transaction.symbol,
+                ISIN=transaction.ISIN,
+                currency=transaction.currency,
+                quantity=0,
+                buy_quantity=0,
+                price=0,
+                dividends=0,
+                fees=0,
+                transactions=[],
+            )
+        else:
+            position = self.positions[symbol]
+
+        match transaction.transaction_type:
+            case TransactionType.BUY:
+                self._handle_buy(transaction, position)
+            case TransactionType.SELL:
+                self._handle_sell(transaction, position)
+            case TransactionType.DIVIDEND:
+                self._handle_dividend(transaction, position)
+            case TransactionType.SPLIT:
+                self.action_processor.handle_split(transaction, position)
+        position.fees += transaction.fees
+        position.transactions.append(transaction)
+
     def _handle_buy(self, transaction: Transaction, position: Position) -> None:
         position.price = (transaction.price * transaction.quantity + position.price * position.buy_quantity) / (
             position.buy_quantity + transaction.quantity
@@ -66,10 +95,11 @@ class TransactionProcessor:
         """Process a new transaction and upsert position"""
         # TODO: implement fuzzy matching for symbols
         matched_symbol = self._match_symbol(transaction.symbol)
-        if matched_symbol is None:
-            self._insert_position(transaction)
-        else:
-            self._update_position(transaction, matched_symbol)
+        self._upsert_position(transaction, matched_symbol)
+        # if matched_symbol is None:
+        #    self._insert_position(transaction)
+        # else:
+        #    self._update_position(transaction, matched_symbol)
 
     def _match_symbol(self, symbol: str) -> str | None:
         """Fuzzy matching for symbols"""

@@ -62,14 +62,14 @@ class AvanzaParser(BaseParser):
         ).sort(by="Datum")
 
         for row in df.iter_rows(named=True):
-            row_typed: AvanzaRow = row
+            row_typed: AvanzaRow = row  # type: ignore
             yield Transaction(
-                date=row_typed.get("Datum"),
-                symbol=row_typed.get("Vardepapper_beskrivning"),
-                transaction_type=TransactionType.from_term(row_typed.get("Typ_av_transaktion")),
-                currency=row_typed.get("Transaktionsvaluta"),
-                ISIN=row_typed.get("ISIN"),
-                quantity=abs(int(row_typed.get("Antal"))),
-                price=abs(row_typed.get("Kurs")),
-                fees=abs(row_typed.get("Courtage_SEK")),
+                date=row_typed["Datum"],
+                symbol=row_typed["Vardepapper_beskrivning"],
+                transaction_type=TransactionType.from_term(row_typed["Typ_av_transaktion"]),
+                currency=row_typed["Transaktionsvaluta"],
+                ISIN=row_typed["ISIN"],
+                quantity=abs(int(row_typed["Antal"])),
+                price=abs(row_typed["Kurs"]),
+                fees=abs(row_typed["Courtage_SEK"]),
             )
