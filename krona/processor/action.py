@@ -36,4 +36,3 @@ class ActionProcessor:
             # TODO: handle fractional shares
             position.price = position.price / split.ratio
             position.quantity = int(position.quantity * split.ratio)
-            position.buy_quantity = int(position.buy_quantity * split.ratio)

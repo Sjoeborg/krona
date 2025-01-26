@@ -36,17 +36,16 @@ class TransactionProcessor:
         self.positions[position.symbol] = position
 
     def _handle_buy(self, transaction: Transaction, position: Position) -> None:
-        position.price = (transaction.price * transaction.quantity + position.price * position.buy_quantity) / (
-            position.buy_quantity + transaction.quantity
+        position.price = (transaction.price * transaction.quantity + position.price * position.quantity) / (
+            position.quantity + transaction.quantity
         )
         position.quantity += transaction.quantity
-        position.buy_quantity += transaction.quantity
 
     def _handle_sell(self, transaction: Transaction, position: Position) -> None:
         position.quantity -= transaction.quantity
 
     def _handle_dividend(self, transaction: Transaction, position: Position) -> None:
-        position.dividends += transaction.total_amount
+        position.dividends += transaction.price * transaction.quantity
 
     def add_transaction(self, transaction: Transaction) -> None:
         """Process a new transaction and upsert position"""

@@ -6,7 +6,7 @@ from krona.models.transaction import Transaction, TransactionType
 from krona.processor.transaction import TransactionProcessor
 
 
-def test_transaction_processor(capfd):
+def test_transaction_processor():
     processor = TransactionProcessor()
     transactions = [
         Transaction(
@@ -53,13 +53,13 @@ def test_transaction_processor(capfd):
 
     # after 3 transactions
     assert processor.positions["Bahnhof B"].quantity == 91
-    assert round(processor.positions["Bahnhof B"].price, 2) == 50.1
+    assert round(processor.positions["Bahnhof B"].price, 2) == 49.28
     assert round(processor.positions["Bahnhof B"].fees, 2) == 34.0
     assert round(processor.positions["Bahnhof B"].dividends, 2) == 0.00
 
 
 @pytest.mark.split
-def test_split(capfd):
+def test_split():
     processor = TransactionProcessor()
     # Manually create transactions
     transactions = [

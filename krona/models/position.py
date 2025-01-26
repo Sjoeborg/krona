@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import override
 
@@ -12,7 +14,6 @@ class Position:
     ISIN: str
     currency: str
     quantity: int
-    buy_quantity: int
     price: float
     dividends: float
     fees: float
@@ -28,13 +29,12 @@ class Position:
         return f"{self.symbol} ({self.ISIN}) - {self.cost_basis:.2f} {self.currency} ({self.quantity} @ {self.price:.2f}) Dividends: {self.dividends:.2f}. Fees: {self.fees:.2f}"
 
     @classmethod
-    def new(cls, transaction: Transaction) -> "Position":
+    def new(cls, transaction: Transaction) -> Position:
         return Position(
             symbol=transaction.symbol,
             ISIN=transaction.ISIN,
             currency=transaction.currency,
             quantity=0,
-            buy_quantity=0,
             price=0,
             dividends=0,
             fees=0,

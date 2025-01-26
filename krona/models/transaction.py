@@ -2,9 +2,12 @@
 Represents a single transaction, immutable and with minimal logic that's intrinsic to what a transaction is
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import override
 
 SYNONYMS: dict[str, set[str]] = {
     "BUY": {"köp", "köpt"},
@@ -21,7 +24,7 @@ class TransactionType(Enum):
     SPLIT = "SPLIT"
 
     @classmethod
-    def from_term(cls, term: str) -> "TransactionType":
+    def from_term(cls, term: str) -> TransactionType:
         """Convert any recognized term to a TransactionType."""
         term = term.strip().lower()
 
@@ -55,5 +58,6 @@ class Transaction:
         # TODO: Check if the fee addition here is correct
         return self.quantity * self.price  # + self.fees
 
+    @override
     def __str__(self) -> str:
         return f"{self.date} - {self.symbol} ({self.ISIN}) - {self.transaction_type.value} {self.total_amount:.2f} {self.currency} ({self.quantity} @ {self.price:.2f}) Fees: {self.fees:.2f}"

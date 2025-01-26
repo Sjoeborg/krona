@@ -71,5 +71,5 @@ class AvanzaParser(BaseParser):
                 ISIN=row_typed["ISIN"],
                 quantity=abs(int(row_typed["Antal"])),
                 price=abs(row_typed["Kurs"]),
-                fees=abs(row_typed["Courtage_SEK"]),
+                fees=abs(row_typed["Courtage_SEK"] or 0),
             )
