@@ -7,7 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import override
+
+from typing_extensions import override  # noqa: UP035
 
 SYNONYMS: dict[str, set[str]] = {
     "BUY": {"köp", "köpt"},
