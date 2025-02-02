@@ -36,9 +36,9 @@ class TransactionProcessor:
         self.positions[position.symbol] = position
 
     def _handle_buy(self, transaction: Transaction, position: Position) -> None:
-        position.price = (transaction.price * transaction.quantity + position.price * position.quantity) / (
-            position.quantity + transaction.quantity
-        )
+        position.price = (
+            transaction.price * transaction.quantity + transaction.fees + position.price * position.quantity
+        ) / (position.quantity + transaction.quantity)
         position.quantity += transaction.quantity
 
     def _handle_sell(self, transaction: Transaction, position: Position) -> None:
@@ -56,7 +56,7 @@ class TransactionProcessor:
         """Fuzzy matching for symbols"""
         if symbol in self.positions:
             return symbol
-        matches: tuple[str, int] | None = process.extractOne(symbol, self.positions.keys(), score_cutoff=80)
+        matches: tuple[str, int] | None = process.extractOne(symbol, self.positions.keys(), score_cutoff=80)  # pyright: ignore[reportAssignmentType, reportUnknownMemberType]
         if matches is None:
             logger.debug(f"No match for {symbol}")
             return None

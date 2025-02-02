@@ -43,8 +43,13 @@ def test_transaction_processor():
 
     processor.add_transaction(transactions[0])
     assert processor.positions["Bahnhof B"].quantity == transactions[0].quantity
-    assert round(processor.positions["Bahnhof B"].cost_basis, 2) == transactions[0].quantity * transactions[0].price
-    assert round(processor.positions["Bahnhof B"].price, 2) == transactions[0].price
+    assert (
+        round(processor.positions["Bahnhof B"].cost_basis, 2)
+        == transactions[0].quantity * transactions[0].price + transactions[0].fees
+    )
+    assert round(processor.positions["Bahnhof B"].price, 2) == round(
+        (transactions[0].quantity * transactions[0].price + transactions[0].fees) / transactions[0].quantity, 2
+    )
     assert round(processor.positions["Bahnhof B"].fees, 2) == transactions[0].fees
     assert round(processor.positions["Bahnhof B"].dividends, 2) == 0
 
@@ -53,7 +58,9 @@ def test_transaction_processor():
 
     # after 3 transactions
     assert processor.positions["Bahnhof B"].quantity == 91
-    assert round(processor.positions["Bahnhof B"].price, 2) == 49.28
+    assert round(processor.positions["Bahnhof B"].price, 2) == round(
+        ((92 * 53 + 12) / 92 * 66 + 25 * 39.45 + 19) / (92 - 26 + 25), 2
+    )
     assert round(processor.positions["Bahnhof B"].fees, 2) == 34.0
     assert round(processor.positions["Bahnhof B"].dividends, 2) == 0.00
 
@@ -109,10 +116,10 @@ def test_split():
 
     assert processor.positions["BAHN B.OLD/X"].quantity == 230
     assert processor.positions["BAHN B.OLD/X"].fees == 19.0
-    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == 214.5 / 10
+    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round((214.5 * 23 + 19) / 230, 2)
 
     processor.add_transaction(transactions[3])
 
     assert processor.positions["BAHN B.OLD/X"].quantity == 230 + 30
     assert processor.positions["BAHN B.OLD/X"].fees == 19 * 2
-    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round((214.5 * 23 + 30.1 * 30) / 260, 2)
+    assert round(processor.positions["BAHN B.OLD/X"].price, 2) == round((214.5 * 23 + 19 + 30.1 * 30 + 19) / 260, 2)

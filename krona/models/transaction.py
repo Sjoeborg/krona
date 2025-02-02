@@ -55,8 +55,7 @@ class Transaction:
 
     @property
     def total_amount(self) -> float:
-        # TODO: Check if the fee addition here is correct
-        return self.quantity * self.price  # + self.fees
+        return self.quantity * self.price + self.fees
 
     @override
     def __str__(self) -> str:
