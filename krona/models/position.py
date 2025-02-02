@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import override
+
+from typing_extensions import override  # noqa: UP035
 
 from krona.models.transaction import Transaction
 
