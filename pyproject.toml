@@ -1,11 +1,11 @@
 [project]
 name = "krona"
-version = "0.0.2"
+version = "0.0.3"
 description = "KRONA Rapidly Organizes Nordic Assets - Transaction tool for Nordic brokers"
 authors = [{ name = "Martin Sjöborg", email = "martin@sjoborg.org" }]
 readme = "README.md"
 keywords = ['python']
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "polars>=1.19.0",
     "thefuzz>=0.22.1",
