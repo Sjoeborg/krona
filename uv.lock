@@ -66,11 +66,12 @@ wheels = [
 
 [[package]]
 name = "krona"
-version = "0.0.2"
+version = "0.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "polars" },
     { name = "thefuzz" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -85,6 +86,7 @@ dev = [
 requires-dist = [
     { name = "polars", specifier = ">=1.19.0" },
     { name = "thefuzz", specifier = ">=0.22.1" },
+    { name = "typing-extensions", specifier = ">=4.12.2" },
 ]
 
 [package.metadata.requires-dev]
