@@ -12,14 +12,16 @@ def test_transaction_processor_automatic_resolution():
 
     # Add mappings to the mapper
     processor.mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])
-
-    # Mock the positions dictionary to test _match_attribute
-    processor._match_attribute = lambda symbol: processor.mapper.match_symbol(symbol, {"Evolution", "Investor B"})
-
-    # These should be resolved automatically by the mapper
-    assert processor._match_attribute("Evolution") == "Evolution"
-    assert processor._match_attribute("Evolution Gaming Group") == "Evolution"
-    assert processor._match_attribute("EVO") == "Evolution"
+    # Mock _match_attribute using patch
+    with patch.object(
+        processor,
+        "_match_attribute",
+        side_effect=lambda symbol, isin=None: processor.mapper.match_symbol(symbol, {"Evolution", "Investor B"}, isin),
+    ):
+        # These should be resolved automatically by the mapper
+        assert processor._match_attribute("Evolution") == "Evolution"
+        assert processor._match_attribute("Evolution Gaming Group") == "Evolution"
+        assert processor._match_attribute("EVO") == "Evolution"
 
 
 def test_symbol_resolver_interactive_disabled():
