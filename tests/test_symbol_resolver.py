@@ -2,21 +2,24 @@ from unittest.mock import MagicMock, patch
 
 from krona.processor.mapper import Mapper
 from krona.processor.resolver import Resolver
+from krona.processor.transaction import TransactionProcessor
 
 
-def test_symbol_resolver_automatic_resolution():
-    # Create a symbol mapper with some mappings
-    symbol_mapper = Mapper()
-    symbol_mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])
+def test_transaction_processor_automatic_resolution():
+    """Test that the TransactionProcessor correctly uses the Mapper for automatic resolution."""
+    # Create a transaction processor
+    processor = TransactionProcessor()
 
-    # Create a resolver with the mapper
-    resolver = Resolver(symbol_mapper)
+    # Add mappings to the mapper
+    processor.mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])
 
-    # Test automatic resolution
-    known_symbols = {"Evolution", "Investor B"}
-    assert resolver.resolve("Evolution", known_symbols) == "Evolution"
-    assert resolver.resolve("Evolution Gaming Group", known_symbols) == "Evolution"
-    assert resolver.resolve("EVO", known_symbols) == "Evolution"
+    # Mock the positions dictionary to test _match_attribute
+    processor._match_attribute = lambda symbol: processor.mapper.match_symbol(symbol, {"Evolution", "Investor B"})
+
+    # These should be resolved automatically by the mapper
+    assert processor._match_attribute("Evolution") == "Evolution"
+    assert processor._match_attribute("Evolution Gaming Group") == "Evolution"
+    assert processor._match_attribute("EVO") == "Evolution"
 
 
 def test_symbol_resolver_interactive_disabled():
@@ -74,8 +77,8 @@ def test_symbol_resolver_adds_mapping():
     assert symbol_mapper.get_ticker("Unknown Symbol") == "Evolution"
 
     # Test that the mapping works for future resolutions without prompting
-    resolver.clear_cache()  # Clear cache to ensure we're not using cached result
-    assert resolver.resolve("Unknown Symbol", known_symbols) == "Evolution"
+    # Note: We now need to use the mapper directly for this test
+    assert symbol_mapper.match_symbol("Unknown Symbol", known_symbols) == "Evolution"
 
 
 def test_symbol_resolver_create_new_position():

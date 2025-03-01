@@ -68,32 +68,34 @@ class Mapper:
             for isin, ticker in isin_mappings.items():
                 self._isin_mappings[isin] = ticker
 
-    def get_ticker(self, symbol: str) -> str:
-        """Get the ticker for a symbol.
+    def get_ticker(self, symbol: str, isin: str | None = None) -> str:
+        """Get the ticker for a symbol or ISIN.
 
         If the symbol is not in the explicit mappings or ISIN mappings, it is returned unchanged.
+        If an ISIN is provided, it will be checked first before checking the symbol.
 
         Args:
-            symbol: The symbol or ISIN to get the ticker for
+            symbol: The symbol to get the ticker for
+            isin: Optional ISIN to check for mappings
 
         Returns:
             The ticker for the symbol
         """
-        # Check ISIN mappings first
-        logger.debug(f"Checking ISIN mappings for {symbol}")
-        logger.debug(f"ISIN mappings: {self._isin_mappings}")
-        if symbol in self._isin_mappings:
-            logger.debug(f"Matched {symbol} to {self._isin_mappings[symbol]} via ISIN")
-            return self._isin_mappings[symbol]
+        # Check ISIN mappings first if an ISIN is provided
+        if isin and isin in self._isin_mappings:
+            logger.debug(f"Matched ISIN {isin} to {self._isin_mappings[isin]}")
+            return self._isin_mappings[isin]
+
         # Fall back to regular mappings
         return self._reverse_mappings.get(symbol, symbol)
 
-    def match_symbol(self, symbol: str, known_symbols: set[str]) -> str | None:
+    def match_symbol(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
         """Match a symbol to a known symbol using explicit mappings and fuzzy matching.
 
         Args:
             symbol: The symbol to match
             known_symbols: Set of known symbols to match against
+            isin: Optional ISIN to help with matching
 
         Returns:
             The matched symbol or None if no match is found
@@ -103,7 +105,7 @@ class Mapper:
             return symbol
 
         # Then check if we have a ticker mapping
-        ticker = self.get_ticker(symbol)
+        ticker = self.get_ticker(symbol, isin)
         if ticker in known_symbols:
             logger.debug(f"Mapped {symbol} to ticker {ticker}")
             return ticker

@@ -33,10 +33,10 @@ class Resolver:
         self._resolution_cache: dict[str, str | None] = {}
 
     def resolve(self, symbol: str, known_symbols: set[str]) -> str | None:
-        """Resolve a symbol to a known symbol or None.
+        """Interactively resolve a symbol with user input.
 
-        First tries automatic resolution via the symbol mapper. If that fails and
-        interactive mode is enabled, asks the user to resolve the symbol.
+        This method is called when automatic resolution via the mapper has failed
+        and interactive mode is enabled.
 
         Args:
             symbol: The symbol to resolve
@@ -45,11 +45,6 @@ class Resolver:
         Returns:
             The resolved symbol or None if no resolution is possible
         """
-        # First try automatic resolution
-        resolved = self.mapper.match_symbol(symbol, known_symbols)
-        if resolved is not None:
-            return resolved
-
         # If we're not in interactive mode or we have no known symbols, return None
         if not self.interactive or not known_symbols:
             return None
