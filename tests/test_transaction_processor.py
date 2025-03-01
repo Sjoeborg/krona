@@ -112,7 +112,9 @@ def test_split():
         ),
     ]
     for transaction in transactions[0:3]:
+        print(f"Processing {transaction}")
         processor.add_transaction(transaction)
+        print(f"Positions: {processor.positions["BAHN B.OLD/X"]}")
 
     assert processor.positions["BAHN B.OLD/X"].quantity == 230
     assert processor.positions["BAHN B.OLD/X"].fees == 19.0

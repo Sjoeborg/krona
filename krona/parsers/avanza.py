@@ -1,6 +1,4 @@
 from collections.abc import Iterator
-from datetime import datetime
-from typing import TypedDict
 
 import polars as pl
 
@@ -23,28 +21,6 @@ schema = pl.Schema({
     "Resultat": pl.Float64,
 })
 
-AVANZA_COLUMNS = {
-    "Typ av transaktion": "Typ_av_transaktion",
-    "Värdepapper/beskrivning": "Vardepapper_beskrivning",
-    "Courtage (SEK)": "Courtage_SEK",
-}
-
-
-class AvanzaRow(TypedDict):
-    Datum: datetime
-    Konto: str
-    Typ_av_transaktion: str
-    Vardepapper_beskrivning: str
-    Antal: int
-    Kurs: float
-    Belopp: float
-    Transaktionsvaluta: str
-    Courtage_SEK: float
-    Valutakurs: float
-    Instrumentvaluta: str
-    ISIN: str
-    Resultat: float
-
 
 class AvanzaParser(BaseParser):
     def validate_format(self, file_path: str) -> bool:
@@ -58,18 +34,16 @@ class AvanzaParser(BaseParser):
             encoding="utf-8-sig",
             decimal_comma=True,
             schema=schema,
-            new_columns=[AVANZA_COLUMNS.get(col, col) for col in schema.names()],
         ).sort(by="Datum")
 
         for row in df.iter_rows(named=True):
-            row_typed: AvanzaRow = row  # type: ignore
             yield Transaction(
-                date=row_typed["Datum"],
-                symbol=row_typed["Vardepapper_beskrivning"],
-                transaction_type=TransactionType.from_term(row_typed["Typ_av_transaktion"]),
-                currency=row_typed["Transaktionsvaluta"],
-                ISIN=row_typed["ISIN"],
-                quantity=abs(int(row_typed["Antal"])),
-                price=abs(row_typed["Kurs"]),
-                fees=abs(row_typed["Courtage_SEK"] or 0),
+                date=row["Datum"],
+                symbol=row["Värdepapper/beskrivning"],
+                transaction_type=TransactionType.from_term(row["Typ av transaktion"]),
+                currency=row["Transaktionsvaluta"],
+                ISIN=row["ISIN"],
+                quantity=abs(int(row["Antal"])),
+                price=abs(row["Kurs"] or 0.0),
+                fees=abs(row["Courtage (SEK)"] or 0.0),
             )

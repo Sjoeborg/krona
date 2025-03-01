@@ -55,6 +55,6 @@ class NordnetParser(BaseParser):
                 currency=str(row["Valuta"]),
                 ISIN=str(row["ISIN"]),
                 quantity=abs(int(row["Antal"])),
-                price=float(row["Kurs"] or 0.0),  # abs(self.to_float(row["Kurs"])),
-                fees=float(row["Courtage"] or 0.0),  # abs(self.to_float(row["Courtage"])),
+                price=float(row["Kurs"] or 0.0),
+                fees=float(row["Courtage"] or 0.0),
             )
