@@ -52,22 +52,6 @@ class Mapper:
         if isin:
             self._isin_mappings[isin] = ticker
 
-    def add_mappings_from_dict(
-        self, mappings: dict[str, list[str]], isin_mappings: dict[str, str] | None = None
-    ) -> None:
-        """Add multiple mappings from dictionaries.
-
-        Args:
-            mappings: Dictionary with tickers as keys and lists of alternatives as values
-            isin_mappings: Optional dictionary with ISINs as keys and tickers as values
-        """
-        for ticker, alternatives in mappings.items():
-            self.add_mapping(ticker, alternatives)
-
-        if isin_mappings:
-            for isin, ticker in isin_mappings.items():
-                self._isin_mappings[isin] = ticker
-
     def get_ticker(self, symbol: str, isin: str | None = None) -> str:
         """Get the ticker for a symbol or ISIN.
 
@@ -127,29 +111,3 @@ class Mapper:
 
         logger.debug(f"No match found for {symbol}")
         return None
-
-    @classmethod
-    def create_default_mapper(cls) -> Mapper:
-        """Create a Mapper with some common default mappings.
-
-        Returns:
-            A Mapper instance with default mappings
-        """
-        mapper = cls()
-
-        # Add some common mappings between Avanza and Nordnet
-        default_mappings = {
-            "Evolution": ["Evolution Gaming Group", "EVO", "Evolution Gaming"],
-            "Investor B": ["Investor B", "INVE B", "Investor ser. B"],
-            "Volvo B": ["Volvo B", "VOLV B", "Volvo ser. B"],
-        }
-
-        # Add ISIN mappings
-        default_isin_mappings = {
-            "SE0012673267": "Evolution",
-            "SE0015811559": "Investor B",
-            "SE0000115446": "Volvo B",
-        }
-
-        mapper.add_mappings_from_dict(default_mappings, default_isin_mappings)
-        return mapper

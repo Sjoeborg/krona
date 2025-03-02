@@ -35,18 +35,6 @@ def test_symbol_mapper_no_match():
     assert mapper.match_symbol("Apple", known_symbols) is None
 
 
-def test_symbol_mapper_default_mappings():
-    mapper = Mapper.create_default_mapper()
-
-    # Test that default mapper has some mappings
-    assert len(mapper._mappings) > 0
-    assert "Evolution" in mapper._mappings
-
-    # Test that default mappings work
-    known_symbols = {"Evolution"}
-    assert mapper.match_symbol("Evolution Gaming Group", known_symbols) == "Evolution"
-
-
 def test_get_ticker():
     mapper = Mapper()
     mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])

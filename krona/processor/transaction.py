@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 class TransactionProcessor:
     """Handles business logic for transactions"""
 
-    def __init__(
-        self,
-        interactive: bool = False,
-    ) -> None:
+    def __init__(self) -> None:
         """Initialize the transaction processor.
 
         Args:
@@ -24,11 +21,10 @@ class TransactionProcessor:
             user_prompt_func: Optional custom function to prompt the user for attribute resolution
         """
         self.positions: dict[str, Position] = {}
-        self.action_processor: ActionProcessor = ActionProcessor()
-        self.mapper: Mapper = Mapper.create_default_mapper()
+        self.action_processor = ActionProcessor()
+        self.mapper = Mapper()
         self.resolver = Resolver(
             mapper=self.mapper,
-            interactive=interactive,
         )
 
     def _upsert_position(self, transaction: Transaction, symbol: str | None) -> None:
@@ -134,8 +130,8 @@ class TransactionProcessor:
         # First try automatic matching with the mapper
         matched_symbol = self.mapper.match_symbol(symbol, set(self.positions.keys()), isin)
 
-        # If automatic matching failed and interactive mode is enabled, use the resolver
-        if matched_symbol is None and self.resolver.interactive:
+        # If automatic matching failed, use the resolver
+        if matched_symbol is None:
             matched_symbol = self.resolver.resolve(symbol, set(self.positions.keys()))
 
         return matched_symbol
@@ -149,24 +145,6 @@ class TransactionProcessor:
             isin: The ISIN of the security
         """
         self.mapper.add_mapping(ticker, alternative_symbols, isin)
-
-    def add_mappings_from_dict(
-        self, mappings: dict[str, list[str]], isin_mappings: dict[str, str] | None = None
-    ) -> None:
-        """Add multiple attribute mappings from a dictionary.
-
-        Args:
-            mappings: Dictionary with tickers as keys and lists of alternatives as values
-        """
-        self.mapper.add_mappings_from_dict(mappings, isin_mappings)
-
-    def set_interactive(self, interactive: bool) -> None:
-        """Set whether to interactively ask the user to resolve unknown attributes.
-
-        Args:
-            interactive: Whether to interactively ask the user
-        """
-        self.resolver.set_interactive(interactive)
 
     def clear_resolution_cache(self) -> None:
         """Clear the attribute resolution cache."""

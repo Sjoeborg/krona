@@ -8,8 +8,7 @@ def test_final_position_matches_expected():
     Test that processing transactions from both Nordnet and Avanza
     results in the expected final position for BAHN B.OLD/X.
     """
-    # Create a transaction processor with interactive mode disabled
-    processor = TransactionProcessor(interactive=False)
+    processor = TransactionProcessor()
 
     # Parse and process Nordnet and Avanza transactions
     nordnet_parser = NordnetParser()

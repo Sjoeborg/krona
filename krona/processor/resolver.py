@@ -19,7 +19,6 @@ class Resolver:
     def __init__(
         self,
         mapper: Mapper,
-        interactive: bool = True,
     ) -> None:
         """Initialize the symbol resolver.
 
@@ -28,7 +27,6 @@ class Resolver:
             interactive: Whether to interactively ask the user for resolution
         """
         self.mapper = mapper
-        self.interactive = interactive
         # Cache of user resolutions to avoid asking multiple times for the same symbol
         self._resolution_cache: dict[str, str | None] = {}
 
@@ -46,7 +44,7 @@ class Resolver:
             The resolved symbol or None if no resolution is possible
         """
         # If we're not in interactive mode or we have no known symbols, return None
-        if not self.interactive or not known_symbols:
+        if not known_symbols:
             return None
 
         # Check if we've already asked the user about this symbol
@@ -76,18 +74,6 @@ class Resolver:
         Returns:
             The user's choice or None if they chose to create a new position
         """
-        return self._default_user_prompt(symbol, known_symbols)
-
-    def _default_user_prompt(self, symbol: str, known_symbols: list[str]) -> str | None:
-        """Default implementation of user prompt.
-
-        Args:
-            symbol: The symbol to resolve
-            known_symbols: List of known symbols to choose from
-
-        Returns:
-            The user's choice or None if they chose to create a new position
-        """
         print(f"\nUnknown symbol: {symbol}")
         print("Choose an existing position to map to, or select 0 to create a new position:")
 
@@ -109,14 +95,6 @@ class Resolver:
                     print(f"Invalid choice. Please enter a number between 0 and {len(known_symbols)}.")
             except ValueError:
                 print("Invalid input. Please enter a number.")
-
-    def set_interactive(self, interactive: bool) -> None:
-        """Set whether to interactively ask the user for resolution.
-
-        Args:
-            interactive: Whether to interactively ask the user for resolution
-        """
-        self.interactive = interactive
 
     def clear_cache(self) -> None:
         """Clear the resolution cache."""
