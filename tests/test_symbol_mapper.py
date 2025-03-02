@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from krona.processor.mapper import Mapper
 
 
@@ -30,9 +32,9 @@ def test_symbol_mapper_no_match():
     mapper = Mapper()
     known_symbols = {"Evolution", "Investor B", "Volvo B"}
 
-    # Test no match
-    assert mapper.match_symbol("Microsoft", known_symbols) is None
-    assert mapper.match_symbol("Apple", known_symbols) is None
+    # Test no match - mock the interactive resolution to return None
+    with patch.object(mapper, "_prompt_user_for_resolution", return_value=None):
+        assert mapper.match_symbol("Microsoft", known_symbols) is None
 
 
 def test_get_ticker():
@@ -43,9 +45,7 @@ def test_get_ticker():
     assert mapper.get_ticker("Evolution") == "Evolution"
     assert mapper.get_ticker("Evolution Gaming Group") == "Evolution"
     assert mapper.get_ticker("EVO") == "Evolution"
-
-    # Test getting ticker for unknown symbol
-    assert mapper.get_ticker("Microsoft") == "Microsoft"
+    assert mapper.get_ticker("Unknown") == "Unknown"  # Returns the input if not found
 
 
 def test_symbol_mapper_automatic_resolution():
@@ -79,7 +79,8 @@ def test_symbol_mapper_fuzzy_matching():
     # This should match "Evolution" with a high score
     assert symbol_mapper.match_symbol("Evoluton", known_symbols) == "Evolution"
     # This should not match anything (score too low)
-    assert symbol_mapper.match_symbol("XYZ", known_symbols) is None
+    with patch.object(symbol_mapper, "_prompt_user_for_resolution", return_value=None):
+        assert symbol_mapper.match_symbol("XYZ", known_symbols) is None
 
 
 def test_symbol_mapper_get_ticker():
@@ -87,10 +88,7 @@ def test_symbol_mapper_get_ticker():
     symbol_mapper = Mapper()
     symbol_mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"], isin="SE0012673267")
 
-    # Test get_ticker
-    assert symbol_mapper.get_ticker("Evolution") == "Evolution"
+    # Test get_ticker with ISIN
+    assert symbol_mapper.get_ticker("Unknown", "SE0012673267") == "Evolution"
+    # Test get_ticker without ISIN
     assert symbol_mapper.get_ticker("Evolution Gaming Group") == "Evolution"
-    assert symbol_mapper.get_ticker("EVO") == "Evolution"
-    assert symbol_mapper.get_ticker("ABC", "SE0012673267") == "Evolution"
-    # Unknown symbol should return itself
-    assert symbol_mapper.get_ticker("Unknown") == "Unknown"

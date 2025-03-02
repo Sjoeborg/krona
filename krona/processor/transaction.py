@@ -4,7 +4,6 @@ from krona.models.position import Position
 from krona.models.transaction import Transaction, TransactionType
 from krona.processor.action import ActionProcessor
 from krona.processor.mapper import Mapper
-from krona.processor.resolver import Resolver
 
 logger = logging.getLogger(__name__)
 
@@ -13,19 +12,10 @@ class TransactionProcessor:
     """Handles business logic for transactions"""
 
     def __init__(self) -> None:
-        """Initialize the transaction processor.
-
-        Args:
-            mapper: Optional custom mapper to use
-            interactive: Whether to interactively ask the user to resolve unknown attributes
-            user_prompt_func: Optional custom function to prompt the user for attribute resolution
-        """
+        """Initialize the transaction processor."""
         self.positions: dict[str, Position] = {}
         self.action_processor = ActionProcessor()
         self.mapper = Mapper()
-        self.resolver = Resolver(
-            mapper=self.mapper,
-        )
 
     def _upsert_position(self, transaction: Transaction, symbol: str | None) -> None:
         """Upsert a position with a new transaction"""
@@ -82,70 +72,10 @@ class TransactionProcessor:
 
     def add_transaction(self, transaction: Transaction) -> None:
         """Process a new transaction and upsert position"""
-        # First, try to match the symbol to an existing position
-        matched_symbol = self._match_attribute(transaction.symbol, transaction.ISIN)
-
-        # If we have an ISIN, try to match by ISIN as well
-        if transaction.ISIN and matched_symbol is None:
-            # Check if any existing position has this ISIN
-            for position_symbol, position in self.positions.items():
-                if position.ISIN == transaction.ISIN:
-                    matched_symbol = position_symbol
-                    # Add the mapping between the transaction symbol and the position symbol
-                    if transaction.symbol:
-                        self.mapper.add_mapping(position_symbol, [transaction.symbol], transaction.ISIN)
-                        logger.debug(
-                            f"Added ISIN-based mapping: {transaction.symbol} -> {position_symbol} via ISIN {transaction.ISIN}"
-                        )
-                    break
+        # Use the mapper to match the transaction to an existing position
+        matched_symbol = self.mapper.match_transaction_to_position(transaction, self.positions)
 
         # Process the transaction
         self._upsert_position(transaction, matched_symbol)
 
-        # If this is a new position (matched_symbol is None), add the symbol and ISIN to the mapper
-        if matched_symbol is None and transaction.symbol:
-            position_symbol = transaction.symbol
-            # Add the mapping between the symbol and ISIN if available
-            if transaction.ISIN:
-                self.mapper.add_mapping(position_symbol, [position_symbol], transaction.ISIN)
-                logger.debug(f"Added mapping for new position: {position_symbol} with ISIN {transaction.ISIN}")
-
         logger.debug(f"Processed transaction {transaction}")
-        if matched_symbol:
-            logger.debug(f"Position: {self.positions[matched_symbol]}")
-
-    def _match_attribute(self, symbol: str, isin: str | None = None) -> str | None:
-        """Match an attribute to an existing position using the mapper.
-
-        This will first try automatic matching using the mapper, and if that fails and interactive mode
-        is enabled, it will use the resolver to ask the user to resolve the attribute.
-
-        Args:
-            symbol: The symbol to match
-            isin: Optional ISIN to help with matching
-
-        Returns:
-            The matched symbol or None if no match is found
-        """
-        # First try automatic matching with the mapper
-        matched_symbol = self.mapper.match_symbol(symbol, set(self.positions.keys()), isin)
-
-        # If automatic matching failed, use the resolver
-        if matched_symbol is None:
-            matched_symbol = self.resolver.resolve(symbol, set(self.positions.keys()))
-
-        return matched_symbol
-
-    def add_mapping(self, ticker: str, alternative_symbols: list[str], isin: str | None = None) -> None:
-        """Add a mapping between a ticker and its alternatives.
-
-        Args:
-            ticker: The primary/standard ticker symbol to use
-            alternative_symbols: List of alternative representations of the same symbol
-            isin: The ISIN of the security
-        """
-        self.mapper.add_mapping(ticker, alternative_symbols, isin)
-
-    def clear_resolution_cache(self) -> None:
-        """Clear the attribute resolution cache."""
-        self.resolver.clear_cache()
