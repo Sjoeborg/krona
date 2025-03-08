@@ -1,7 +1,5 @@
 from datetime import datetime
 
-import pytest
-
 from krona.models.transaction import Transaction, TransactionType
 from krona.processor.transaction import TransactionProcessor
 
@@ -113,7 +111,6 @@ def test_isin_matching():
     assert round(processor.positions["Evolution Gaming"].price, 2) == round(expected_price, 2)
 
 
-@pytest.mark.split
 def test_split():
     processor = TransactionProcessor()
     # Manually create transactions

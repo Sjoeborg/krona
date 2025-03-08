@@ -17,6 +17,16 @@ class TransactionProcessor:
         self.action_processor = ActionProcessor()
         self.mapper = Mapper()
 
+    def add_transaction(self, transaction: Transaction) -> None:
+        """Process a new transaction and upsert position"""
+        # Use the mapper to match the transaction to an existing position
+        matched_symbol = self.mapper.match_transaction_to_position(transaction, self.positions)
+
+        # Process the transaction
+        self._upsert_position(transaction, matched_symbol)
+
+        logger.debug(f"Processed transaction {transaction}")
+
     def _upsert_position(self, transaction: Transaction, symbol: str | None) -> None:
         """Upsert a position with a new transaction"""
 
@@ -69,13 +79,3 @@ class TransactionProcessor:
 
             # Update the position's ISIN
             position.ISIN = transaction.ISIN
-
-    def add_transaction(self, transaction: Transaction) -> None:
-        """Process a new transaction and upsert position"""
-        # Use the mapper to match the transaction to an existing position
-        matched_symbol = self.mapper.match_transaction_to_position(transaction, self.positions)
-
-        # Process the transaction
-        self._upsert_position(transaction, matched_symbol)
-
-        logger.debug(f"Processed transaction {transaction}")

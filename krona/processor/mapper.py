@@ -27,8 +27,6 @@ class Mapper:
         self._reverse_mappings: dict[str, str] = {}
         # New ISIN mappings
         self._isin_mappings: dict[str, str] = {}  # ISIN -> ticker
-        # Default fuzzy match score cutoff
-        self._fuzzy_match_cutoff = 80
         # Cache of user resolutions to avoid asking multiple times for the same symbol
         self._resolution_cache: dict[str, str | None] = {}
 
@@ -57,7 +55,43 @@ class Mapper:
         if isin:
             self._isin_mappings[isin] = ticker
 
-    def get_ticker(self, symbol: str, isin: str | None = None) -> str:
+    def match_transaction_to_position(self, transaction: Transaction, positions: dict[str, Position]) -> str | None:
+        """Match a transaction to an existing position using symbol, ISIN, and interactive resolution if needed.
+
+        This method first tries to match the transaction symbol to an existing position.
+        If that fails and an ISIN is provided, it tries to match by ISIN.
+        If both fail, it will try interactive resolution.
+
+        Args:
+            transaction: The transaction to match
+            positions: Dictionary of existing positions (symbol -> position)
+
+        Returns:
+            The matched position symbol or None if no match is found
+        """
+        transaction_symbol = transaction.symbol
+        transaction_isin = transaction.ISIN
+
+        # First, try to match the symbol to an existing position
+        matched_symbol = self._match_symbol(transaction_symbol, set(positions.keys()), transaction_isin)
+
+        # If we have an ISIN and no match yet, try to match by ISIN directly
+        if transaction_isin and matched_symbol is None:
+            # Check if any existing position has this ISIN
+            for position_symbol, position in positions.items():
+                if transaction_isin == position.ISIN:
+                    matched_symbol = position_symbol
+                    # Add the mapping between the transaction symbol and the position symbol
+                    if transaction_symbol:
+                        self.add_mapping(position_symbol, [transaction_symbol], transaction_isin)
+                        logger.debug(
+                            f"Added ISIN-based mapping: {transaction_symbol} -> {position_symbol} via ISIN {transaction_isin}"
+                        )
+                    break
+
+        return matched_symbol
+
+    def _get_ticker(self, symbol: str, isin: str | None = None) -> str:
         """Get the ticker for a symbol or ISIN.
 
         If the symbol is not in the explicit mappings or ISIN mappings, it is returned unchanged.
@@ -78,43 +112,7 @@ class Mapper:
         # Fall back to regular mappings
         return self._reverse_mappings.get(symbol, symbol)
 
-    def match_transaction_to_position(self, transaction: Transaction, positions: dict[str, Position]) -> str | None:
-        """Match a transaction to an existing position using symbol, ISIN, and interactive resolution if needed.
-
-        This method first tries to match the transaction symbol to an existing position.
-        If that fails and an ISIN is provided, it tries to match by ISIN.
-        If both fail, it will try interactive resolution.
-
-        Args:
-            transaction: The transaction to match
-            positions: Dictionary of existing positions (symbol -> position)
-
-        Returns:
-            The matched position symbol or None if no match is found
-        """
-        transaction_symbol = transaction.symbol
-        transaction_isin = transaction.ISIN
-
-        # First, try to match the symbol to an existing position
-        matched_symbol = self.match_symbol(transaction_symbol, set(positions.keys()), transaction_isin)
-
-        # If we have an ISIN and no match yet, try to match by ISIN directly
-        if transaction_isin and matched_symbol is None:
-            # Check if any existing position has this ISIN
-            for position_symbol, position in positions.items():
-                if transaction_isin == position.ISIN:
-                    matched_symbol = position_symbol
-                    # Add the mapping between the transaction symbol and the position symbol
-                    if transaction_symbol:
-                        self.add_mapping(position_symbol, [transaction_symbol], transaction_isin)
-                        logger.debug(
-                            f"Added ISIN-based mapping: {transaction_symbol} -> {position_symbol} via ISIN {transaction_isin}"
-                        )
-                    break
-
-        return matched_symbol
-
-    def match_symbol(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
+    def _match_symbol(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
         """Match a symbol to a known symbol using explicit mappings, fuzzy matching, and interactive resolution.
 
         This method first tries automatic matching using explicit mappings and fuzzy matching.
@@ -153,20 +151,20 @@ class Mapper:
             return symbol
 
         # Then check if we have a ticker mapping
-        ticker = self.get_ticker(symbol, isin)
+        ticker = self._get_ticker(symbol, isin)
         if ticker in known_symbols:
             logger.debug(f"Mapped {symbol} to ticker {ticker}")
             return ticker
 
         # Check if any of the known symbols have a ticker that matches
         for known in known_symbols:
-            known_ticker = self.get_ticker(known)
+            known_ticker = self._get_ticker(known)
             if known_ticker == ticker:
                 logger.debug(f"Matched {symbol} to {known} via ticker {ticker}")
                 return known
 
         # Finally, try fuzzy matching
-        matches = process.extractOne(symbol, known_symbols, score_cutoff=self._fuzzy_match_cutoff)
+        matches = process.extractOne(symbol, known_symbols, score_cutoff=80)
         if matches is not None:
             matched_symbol = cast(str, matches[0])
             score = cast(int, matches[1])

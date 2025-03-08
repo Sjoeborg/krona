@@ -80,7 +80,7 @@ def test_mapper_transaction_matching():
     assert mapper.match_transaction_to_position(mock_transaction3, positions) == "Evolution"
 
     # Test matching by ISIN
-    with patch.object(mapper, "match_symbol", return_value=None):  # Force ISIN matching path
+    with patch.object(mapper, "_match_symbol", return_value=None):  # Force ISIN matching path
         assert mapper.match_transaction_to_position(mock_transaction4, positions) == "Evolution"
 
 
@@ -93,7 +93,7 @@ def test_mapper_manual_resolution():
     with patch.object(mapper, "_prompt_user_for_resolution", return_value="Evolution") as mock_prompt:
         # Test that unknown symbols are resolved via the prompt
         known_symbols = {"Evolution", "Investor B"}
-        result = mapper.match_symbol("Unknown Symbol", known_symbols)
+        result = mapper._match_symbol("Unknown Symbol", known_symbols)
 
         # Verify that the result is correct
         assert result == "Evolution"
@@ -110,13 +110,13 @@ def test_mapper_adds_mapping_after_resolution():
     # Test that resolving an unknown symbol adds a mapping
     known_symbols = {"Evolution", "Investor B"}
     with patch.object(mapper, "_prompt_user_for_resolution", return_value="Evolution"):
-        assert mapper.match_symbol("Unknown Symbol", known_symbols) == "Evolution"
+        assert mapper._match_symbol("Unknown Symbol", known_symbols) == "Evolution"
 
     # Verify that the mapping was added to the mapper
-    assert mapper.get_ticker("Unknown Symbol") == "Evolution"
+    assert mapper._get_ticker("Unknown Symbol") == "Evolution"
 
     # Test that the mapping works for future resolutions without prompting
-    assert mapper.match_symbol("Unknown Symbol", known_symbols) == "Evolution"
+    assert mapper._match_symbol("Unknown Symbol", known_symbols) == "Evolution"
 
 
 def test_mapper_create_new_position():
@@ -127,7 +127,7 @@ def test_mapper_create_new_position():
     # Test that resolving with None creates a new position
     known_symbols = {"Evolution", "Investor B"}
     with patch.object(mapper, "_prompt_user_for_resolution", return_value=None):
-        assert mapper.match_symbol("New Symbol", known_symbols) is None
+        assert mapper._match_symbol("New Symbol", known_symbols) is None
 
     # Verify that no mapping was added
-    assert mapper.get_ticker("New Symbol") == "New Symbol"
+    assert mapper._get_ticker("New Symbol") == "New Symbol"
