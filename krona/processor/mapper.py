@@ -16,6 +16,9 @@ from krona.models.transaction import Transaction  # type: ignore
 
 logger = logging.getLogger(__name__)
 
+INTERACTIVE_SIMILARITY_THRESHOLD = 60
+AUTOMATIC_SIMILARITY_THRESHOLD = 95
+
 
 class Mapper:
     """Maps attributes between different brokers using explicit mappings, fuzzy matching, and interactive resolution."""
@@ -164,7 +167,7 @@ class Mapper:
                 return known
 
         # Finally, try fuzzy matching
-        matches = process.extractOne(symbol, known_symbols, score_cutoff=80)
+        matches = process.extractOne(symbol, known_symbols, score_cutoff=AUTOMATIC_SIMILARITY_THRESHOLD)
         if matches is not None:
             matched_symbol = cast(str, matches[0])
             score = cast(int, matches[1])
@@ -178,6 +181,8 @@ class Mapper:
         """Interactively resolve a symbol with user input.
 
         This method is called when automatic resolution has failed.
+        It will only prompt for user resolution if there's a reasonable similarity
+        between the new symbol and existing ones.
 
         Args:
             symbol: The symbol to resolve
@@ -194,8 +199,17 @@ class Mapper:
         if symbol in self._resolution_cache:
             return self._resolution_cache[symbol]
 
-        # Ask the user to resolve the symbol
-        user_choice = self._prompt_user_for_resolution(symbol, list(known_symbols))
+        # Try fuzzy matching first to find similar symbols
+        matches = process.extract(symbol, known_symbols, limit=3)
+        similar_symbols = [match[0] for match in matches if match[1] >= INTERACTIVE_SIMILARITY_THRESHOLD]
+
+        # If no similar symbols found, return None to create a new position
+        if not similar_symbols:
+            logger.debug(f"No similar symbols found for {symbol}, creating new position")
+            return None
+
+        # Ask the user to resolve the symbol only if we found similar ones
+        user_choice = self._prompt_user_for_resolution(symbol, similar_symbols)
 
         # Cache the result
         self._resolution_cache[symbol] = user_choice
@@ -218,23 +232,22 @@ class Mapper:
             The user's choice or None if they chose to create a new position
         """
         print(f"\nUnknown symbol: {symbol}")
-        print("Choose an existing position to map to, or select 0 to create a new position:")
+        print("Choose an existing position to map to, or press <Enter> to create a new position:")
 
         for i, known in enumerate(known_symbols, 1):
             print(f"{i}. {known}")
-        print("0. Create new position")
+        print("<Enter>. Create new position")
 
         while True:
             try:
-                choice = input(f"Enter your choice (0-{len(known_symbols)}): ")
+                choice = input(f"Enter your choice (1-{len(known_symbols)}): ")
+                if choice == "":
+                    return None  # Create new position
                 choice_num = int(choice)
 
-                if 0 <= choice_num <= len(known_symbols):
-                    if choice_num == 0:
-                        return None  # Create new position
-                    else:
-                        return known_symbols[choice_num - 1]
+                if 1 <= choice_num <= len(known_symbols):
+                    return known_symbols[choice_num - 1]
                 else:
-                    print(f"Invalid choice. Please enter a number between 0 and {len(known_symbols)}.")
+                    print(f"Invalid choice. Please enter a number between 1 and {len(known_symbols)}.")
             except ValueError:
-                print("Invalid input. Please enter a number.")
+                print("Invalid input. Please enter a number or press <Enter> to create a new position.")

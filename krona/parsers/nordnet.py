@@ -41,11 +41,17 @@ NORDNET_FIELDNAMES = [
 
 
 class NordnetParser(BaseParser):
-    def validate_format(self, file_path: str) -> bool:
-        df = pl.read_csv(file_path, separator="\t", encoding="utf-16")
-        return set(NORDNET_FIELDNAMES).issubset(set(df.columns))
+    def is_valid_file(self, file_path: str) -> bool:
+        try:
+            df = pl.read_csv(file_path, separator="\t", encoding="utf-16")
+            return set(NORDNET_FIELDNAMES).issubset(set(df.columns))
+        except UnicodeDecodeError:
+            return False
 
     def parse_file(self, file_path: str) -> Iterator[Transaction]:
+        if not self.is_valid_file(file_path):
+            return
+
         df = pl.read_csv(file_path, separator="\t", encoding="utf-16", decimal_comma=True).sort(by="Affärsdag")
         for row in df.iter_rows(named=True):
             yield Transaction(

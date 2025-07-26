@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterator
 
 import polars as pl
@@ -5,12 +6,14 @@ import polars as pl
 from krona.models.transaction import Transaction, TransactionType
 from krona.parsers.base import BaseParser
 
+logger = logging.getLogger(__name__)
+
 schema = pl.Schema({
     "Datum": pl.Date,
     "Konto": pl.Utf8,
     "Typ av transaktion": pl.Utf8,
     "Värdepapper/beskrivning": pl.Utf8,
-    "Antal": pl.Int64,
+    "Antal": pl.Float64,
     "Kurs": pl.Float64,
     "Belopp": pl.Float64,
     "Transaktionsvaluta": pl.Utf8,
@@ -23,27 +26,56 @@ schema = pl.Schema({
 
 
 class AvanzaParser(BaseParser):
-    def validate_format(self, file_path: str) -> bool:
-        df = pl.read_csv(file_path, separator=";", encoding="utf-8-sig")
-        return set(schema.names()).issubset(set(df.columns))
+    def is_valid_file(self, file_path: str) -> bool:
+        try:
+            df = pl.read_csv(file_path, separator=";", encoding="utf-8-sig", decimal_comma=True, schema=schema)
+            return set(schema.names()).issubset(set(df.columns))
+        except UnicodeDecodeError:
+            return False
 
-    def parse_file(self, file_path: str) -> Iterator[Transaction]:
-        df = pl.read_csv(
-            file_path,
-            separator=";",
-            encoding="utf-8-sig",
-            decimal_comma=True,
-            schema=schema,
-        ).sort(by="Datum")
+    def parse_file(self, file_path: str, skip_unknown_types: bool = True) -> Iterator[Transaction]:
+        if not self.is_valid_file(file_path):
+            return
+
+        df = (
+            pl.read_csv(
+                file_path,
+                separator=";",
+                encoding="utf-8-sig",
+                decimal_comma=True,
+                schema=schema,
+            )
+            .sort(by=["Datum", "Typ av transaktion"])  # Ensure that we process buys before sells on the same day
+            .with_columns(
+                pl.when(pl.col("Valutakurs").is_null()).then(1.0).otherwise(pl.col("Valutakurs")).alias("Valutakurs"),
+                pl.when(pl.col("Kurs").is_null()).then(0.0).otherwise(pl.col("Kurs")).alias("Kurs"),
+                pl.when(pl.col("Courtage (SEK)").is_null())
+                .then(0.0)
+                .otherwise(pl.col("Courtage (SEK)"))
+                .alias("Courtage (SEK)"),
+            )
+        )
 
         for row in df.iter_rows(named=True):
-            yield Transaction(
-                date=row["Datum"],
-                symbol=row["Värdepapper/beskrivning"],
-                transaction_type=TransactionType.from_term(row["Typ av transaktion"]),
-                currency=row["Transaktionsvaluta"],
-                ISIN=row["ISIN"],
-                quantity=abs(int(row["Antal"])),
-                price=abs(row["Kurs"] or 0.0),
-                fees=abs(row["Courtage (SEK)"] or 0.0),
-            )
+            try:
+                transaction_type = TransactionType.from_term(row["Typ av transaktion"])
+                if transaction_type == TransactionType.SELL and row["Antal"] > 0:
+                    logger.warning("Possible error in transaction, modifying type to BUY:\n %s", row)
+                    transaction_type = TransactionType.BUY
+                yield Transaction(
+                    date=row["Datum"],
+                    symbol=row["Värdepapper/beskrivning"],
+                    transaction_type=transaction_type,
+                    currency=row["Transaktionsvaluta"],
+                    ISIN=row["ISIN"],
+                    quantity=abs(row["Antal"]),
+                    price=abs(row["Valutakurs"] * row["Kurs"]),
+                    fees=abs(row["Courtage (SEK)"]),
+                )
+            except ValueError:
+                if skip_unknown_types:
+                    continue
+                else:
+                    raise
+            except TypeError:
+                continue

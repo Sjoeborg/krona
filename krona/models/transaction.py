@@ -14,7 +14,7 @@ SYNONYMS: dict[str, set[str]] = {
     "BUY": {"köp", "köpt"},
     "SELL": {"sälj", "sålt"},
     "DIVIDEND": {"utdelning"},
-    "SPLIT": {"byte inlägg vp", "byte uttag vp"},
+    "SPLIT": {"byte inlägg vp", "byte uttag vp", "Övrigt"},
 }
 
 
@@ -30,7 +30,8 @@ class TransactionType(Enum):
         term = term.strip().lower()
 
         for type_name, synonyms in SYNONYMS.items():
-            if term in synonyms:
+            # TODO: make SYNONYMS better
+            if term in [synonym.strip().lower() for synonym in synonyms]:
                 return cls[type_name]
 
         raise ValueError(f"Unknown transaction type: '{term}'. Valid terms are: {cls.get_valid_terms()}")
@@ -60,4 +61,4 @@ class Transaction:
 
     @override
     def __str__(self) -> str:
-        return f"{self.date} - {self.symbol} ({self.ISIN}) - {self.transaction_type.value} {self.total_amount:.2f} {self.currency} ({self.quantity} @ {self.price:.2f}) Fees: {self.fees:.2f}"
+        return f"{self.date} - {self.symbol} ({self.ISIN}): {self.transaction_type.value} {self.total_amount:.2f} {self.currency} ({self.quantity} @ {self.price:.2f}) Fees: {self.fees:.2f}"

@@ -13,7 +13,7 @@ class BaseParser(ABC):
         pass
 
     @abstractmethod
-    def validate_format(self, file_path: str) -> bool:
+    def is_valid_file(self, file_path: str) -> bool:
         """Return True if the file matches this parser's format."""
         pass
 

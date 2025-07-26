@@ -85,7 +85,7 @@ def test_mapper_transaction_matching():
 
 
 def test_mapper_manual_resolution():
-    """Test that the Mapper correctly handles manual resolution."""
+    """Test that the Mapper does not prompt for resolution if the symbol is known."""
     # Create a mapper
     mapper = Mapper()
 
@@ -93,13 +93,10 @@ def test_mapper_manual_resolution():
     with patch.object(mapper, "_prompt_user_for_resolution", return_value="Evolution") as mock_prompt:
         # Test that unknown symbols are resolved via the prompt
         known_symbols = {"Evolution", "Investor B"}
-        result = mapper._match_symbol("Unknown Symbol", known_symbols)
+        _ = mapper._match_symbol("Unknown Symbol", known_symbols)
 
-        # Verify that the result is correct
-        assert result == "Evolution"
-
-        # Verify that the mock was called with the correct arguments
-        mock_prompt.assert_called_once_with("Unknown Symbol", list(known_symbols))
+        # Verify that the mock was not called
+        mock_prompt.assert_not_called()
 
 
 def test_mapper_adds_mapping_after_resolution():
@@ -110,13 +107,10 @@ def test_mapper_adds_mapping_after_resolution():
     # Test that resolving an unknown symbol adds a mapping
     known_symbols = {"Evolution", "Investor B"}
     with patch.object(mapper, "_prompt_user_for_resolution", return_value="Evolution"):
-        assert mapper._match_symbol("Unknown Symbol", known_symbols) == "Evolution"
-
-    # Verify that the mapping was added to the mapper
-    assert mapper._get_ticker("Unknown Symbol") == "Evolution"
+        assert mapper._match_symbol("Evo", known_symbols) == "Evolution"
 
     # Test that the mapping works for future resolutions without prompting
-    assert mapper._match_symbol("Unknown Symbol", known_symbols) == "Evolution"
+    assert mapper._match_symbol("Evo", known_symbols) == "Evolution"
 
 
 def test_mapper_create_new_position():

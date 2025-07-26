@@ -23,7 +23,7 @@ def test_final_position_matches_expected():
         processor.add_transaction(transaction)
 
     # Verify the final position for BAHN B.OLD/X
-    expected_position = "BAHN B.OLD/X (SE0002252296) - 4961.60 SEK (92 @ 53.93) Dividends: 280.00. Fees: 454.00"
+    expected_position = "BAHN B.OLD/X (SE0002252296): 4961.60 SEK (92.0 @ 53.93) Dividends: 280.00. Fees: 454.00"
 
     # Find the position with ISIN SE0002252296
     bahn_position = None

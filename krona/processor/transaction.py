@@ -47,12 +47,17 @@ class TransactionProcessor:
             case TransactionType.DIVIDEND:
                 self._handle_dividend(transaction, position)
             case TransactionType.SPLIT:
+                # TODO: make more lenient by triggering this on any transaction type?
                 self._handle_split(transaction, position)
         position.fees += transaction.fees
         position.transactions.append(transaction)
         self.positions[position.symbol] = position
 
     def _handle_buy(self, transaction: Transaction, position: Position) -> None:
+        if position.quantity + transaction.quantity <= 0:
+            raise ValueError(
+                f"New quantity is not positive for adding transaction {transaction} to position {position}"
+            )
         position.price = (
             transaction.price * transaction.quantity + transaction.fees + position.price * position.quantity
         ) / (position.quantity + transaction.quantity)
