@@ -15,8 +15,8 @@ from krona.models.position import Position
 from krona.models.transaction import Transaction  # type: ignore
 from krona.utils.logger import logger
 
-INTERACTIVE_SIMILARITY_THRESHOLD = 87
-AUTOMATIC_SIMILARITY_THRESHOLD = 90
+INTERACTIVE_SIMILARITY_THRESHOLD = 80
+AUTOMATIC_SIMILARITY_THRESHOLD = 95
 
 
 class Mapper:
@@ -27,6 +27,10 @@ class Mapper:
         self._mappings: dict[str, str | None] = {}
         # New ISIN mappings
         self._isin_mappings: dict[str, str] = {}  # ISIN -> ticker
+
+    def get_synonyms(self, symbol: str) -> str | None:
+        """Get synonyms for a symbol."""
+        return self._mappings.get(symbol, None)
 
     def load_mappings(self, path: Path) -> None:
         """Load mappings from a file."""
@@ -57,8 +61,8 @@ class Mapper:
         """
         # Add all alternative symbols
         for alt_symbol in alternative_symbols:
-            if alt_symbol != ticker:
-                self._mappings[alt_symbol] = ticker
+            self._mappings[alt_symbol] = ticker
+            self._mappings[ticker] = alt_symbol
 
         # Add ISIN mapping if provided
         if isin:
