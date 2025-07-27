@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-from typing_extensions import override  # noqa: UP035
+from typing import override
 
 from krona.models.transaction import Transaction, TransactionType
 
@@ -27,7 +26,7 @@ class Position:
 
     @property
     def is_closed(self) -> bool:
-        return self.quantity <= 0
+        return self.quantity == 0
 
     @property
     def realized_profit(self) -> float | None:

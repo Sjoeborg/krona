@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 from enum import Enum
 
 
@@ -9,7 +9,7 @@ class ActionType(Enum):
 
 @dataclass
 class Action:
-    date: datetime
+    date: date
     type: ActionType
     old_symbol: str
     new_symbol: str

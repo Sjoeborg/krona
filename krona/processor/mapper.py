@@ -6,15 +6,14 @@ using both explicit mappings, fuzzy matching, and interactive user resolution.
 
 from __future__ import annotations
 
-import logging
+from pathlib import Path
 from typing import cast
 
 from thefuzz import process
 
 from krona.models.position import Position
 from krona.models.transaction import Transaction  # type: ignore
-
-logger = logging.getLogger(__name__)
+from krona.utils.logger import logger
 
 INTERACTIVE_SIMILARITY_THRESHOLD = 60
 AUTOMATIC_SIMILARITY_THRESHOLD = 95
@@ -32,6 +31,27 @@ class Mapper:
         self._isin_mappings: dict[str, str] = {}  # ISIN -> ticker
         # Cache of user resolutions to avoid asking multiple times for the same symbol
         self._resolution_cache: dict[str, str | None] = {}
+        # Load mappings from file
+        self.load_mappings(Path("mappings.csv"))
+
+    def load_mappings(self, path: Path) -> None:
+        """Load mappings from a file."""
+        if not path.exists():
+            return
+
+        with open(path) as f:
+            for line in f:
+                symbol, choice = line.strip().split(",")
+                if choice == "None":
+                    self._resolution_cache[symbol] = None
+                else:
+                    self._resolution_cache[symbol] = choice
+
+    def save_mappings(self, path: Path) -> None:
+        """Save mappings to a file."""
+        with open(path, "w") as f:
+            for symbol, choice in self._resolution_cache.items():
+                f.write(f"{symbol},{choice}\n")
 
     def add_mapping(self, ticker: str, alternative_symbols: list[str], isin: str | None = None) -> None:
         """Add a mapping between a ticker and its alternatives.
@@ -213,6 +233,7 @@ class Mapper:
 
         # Cache the result
         self._resolution_cache[symbol] = user_choice
+        self.save_mappings(Path("mappings.csv"))
 
         # If the user provided a mapping, add it to the mappings
         if user_choice is not None and user_choice in known_symbols:

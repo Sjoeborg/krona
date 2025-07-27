@@ -1,11 +1,8 @@
-import logging
-
 from krona.models.position import Position
 from krona.models.transaction import Transaction, TransactionType
 from krona.processor.action import ActionProcessor
 from krona.processor.mapper import Mapper
-
-logger = logging.getLogger(__name__)
+from krona.utils.logger import logger
 
 
 class TransactionProcessor:
@@ -14,6 +11,7 @@ class TransactionProcessor:
     def __init__(self) -> None:
         """Initialize the transaction processor."""
         self.positions: dict[str, Position] = {}
+        self.history: dict[str, list[Transaction]] = {}
         self.action_processor = ActionProcessor()
         self.mapper = Mapper()
 
@@ -52,12 +50,21 @@ class TransactionProcessor:
         position.fees += transaction.fees
         position.transactions.append(transaction)
         self.positions[position.symbol] = position
+        self.history[position.symbol] = [*self.history.get(position.symbol, []), transaction]
 
     def _handle_buy(self, transaction: Transaction, position: Position) -> None:
         if position.quantity + transaction.quantity <= 0:
-            raise ValueError(
-                f"New quantity is not positive for adding transaction {transaction} to position {position}"
+            logger.warning(
+                "New quantity is not positive for adding transaction:\n"
+                f"  {transaction}\n"
+                "to position:\n"
+                f"  {position}\n"
+                "History:\n"
+                f"  {'\n  '.join([str(t) for t in self.history[position.symbol]])}"
             )
+            if position.quantity + transaction.quantity == 0:
+                logger.warning(f"Was trying to divide by zero, skipping transaction: {transaction}")
+                return
         position.price = (
             transaction.price * transaction.quantity + transaction.fees + position.price * position.quantity
         ) / (position.quantity + transaction.quantity)
@@ -84,3 +91,11 @@ class TransactionProcessor:
 
             # Update the position's ISIN
             position.ISIN = transaction.ISIN
+
+    def _handle_move_from_unknown_account(self, transaction: Transaction) -> None:
+        """Handle a move from an unknown account."""
+        # TODO: how do we distinguish between a split and a move from another account? Do we need to do it?
+        # Check for unresolved splits if we have/get a negative quantity?
+        # Example: 2016-11-01;ISK;Övrigt;CORRECTIONS CORP COM
+        if transaction.transaction_type == TransactionType.SPLIT and transaction.price == 0:
+            logger.warning("Transaction is probably a move from another account:\n %s", transaction)

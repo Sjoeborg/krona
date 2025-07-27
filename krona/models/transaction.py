@@ -5,16 +5,16 @@ Represents a single transaction, immutable and with minimal logic that's intrins
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 from enum import Enum
-
-from typing_extensions import override  # noqa: UP035
+from typing import override
 
 SYNONYMS: dict[str, set[str]] = {
     "BUY": {"köp", "köpt"},
     "SELL": {"sälj", "sålt"},
     "DIVIDEND": {"utdelning"},
     "SPLIT": {"byte inlägg vp", "byte uttag vp", "Övrigt"},
+    "MOVE": {"Värdepappersöverföring", "INLÄGG VP"},
 }
 
 
@@ -23,6 +23,7 @@ class TransactionType(Enum):
     SELL = "SELL"
     DIVIDEND = "DIVIDEND"
     SPLIT = "SPLIT"
+    MOVE = "MOVE"
 
     @classmethod
     def from_term(cls, term: str) -> TransactionType:
@@ -34,19 +35,14 @@ class TransactionType(Enum):
             if term in [synonym.strip().lower() for synonym in synonyms]:
                 return cls[type_name]
 
-        raise ValueError(f"Unknown transaction type: '{term}'. Valid terms are: {cls.get_valid_terms()}")
-
-    @classmethod
-    def get_valid_terms(cls) -> set[str]:
-        """Get all valid transaction terms."""
-        return set().union(*SYNONYMS.values())
+        raise ValueError(f"Unknown transaction type: '{term}'. Valid terms are: {SYNONYMS.values()}")
 
 
 @dataclass
 class Transaction:
     """Represents a single transaction, immutable and with minimal logic"""
 
-    date: datetime
+    date: date
     symbol: str
     ISIN: str
     transaction_type: TransactionType

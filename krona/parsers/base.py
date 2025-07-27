@@ -7,6 +7,8 @@ from krona.models.transaction import Transaction
 
 
 class BaseParser(ABC):
+    name: str
+
     @abstractmethod
     def parse_file(self, file_path: str) -> Iterator[Transaction]:
         """Parse a CSV file and yield Transaction objects."""

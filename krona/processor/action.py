@@ -1,10 +1,7 @@
-import logging
-
 from krona.models.action import Action, ActionType
 from krona.models.position import Position
 from krona.models.transaction import Transaction
-
-logger = logging.getLogger(__name__)
+from krona.utils.logger import logger
 
 
 class ActionProcessor:

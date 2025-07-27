@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Iterator
 
 import polars as pl
@@ -6,26 +5,28 @@ import polars as pl
 from krona.models.transaction import Transaction, TransactionType
 from krona.parsers.base import BaseParser
 
-logger = logging.getLogger(__name__)
-
-schema = pl.Schema({
-    "Datum": pl.Date,
-    "Konto": pl.Utf8,
-    "Typ av transaktion": pl.Utf8,
-    "Värdepapper/beskrivning": pl.Utf8,
-    "Antal": pl.Float64,
-    "Kurs": pl.Float64,
-    "Belopp": pl.Float64,
-    "Transaktionsvaluta": pl.Utf8,
-    "Courtage (SEK)": pl.Float64,
-    "Valutakurs": pl.Float64,
-    "Instrumentvaluta": pl.Utf8,
-    "ISIN": pl.Utf8,
-    "Resultat": pl.Float64,
-})
+schema = pl.Schema(
+    {
+        "Datum": pl.Date,
+        "Konto": pl.Utf8,
+        "Typ av transaktion": pl.Utf8,
+        "Värdepapper/beskrivning": pl.Utf8,
+        "Antal": pl.Float64,
+        "Kurs": pl.Float64,
+        "Belopp": pl.Float64,
+        "Transaktionsvaluta": pl.Utf8,
+        "Courtage (SEK)": pl.Float64,
+        "Valutakurs": pl.Float64,
+        "Instrumentvaluta": pl.Utf8,
+        "ISIN": pl.Utf8,
+        "Resultat": pl.Float64,
+    }
+)
 
 
 class AvanzaParser(BaseParser):
+    name = "avanza"
+
     def is_valid_file(self, file_path: str) -> bool:
         try:
             df = pl.read_csv(file_path, separator=";", encoding="utf-8-sig", decimal_comma=True, schema=schema)
@@ -60,7 +61,8 @@ class AvanzaParser(BaseParser):
             try:
                 transaction_type = TransactionType.from_term(row["Typ av transaktion"])
                 if transaction_type == TransactionType.SELL and row["Antal"] > 0:
-                    logger.warning("Possible error in transaction, modifying type to BUY:\n %s", row)
+                    # This is a correction from avanza that removes an erraneous SELL transaction.
+                    # We put it as BUY so that they cancel each other out.
                     transaction_type = TransactionType.BUY
                 yield Transaction(
                     date=row["Datum"],
@@ -74,8 +76,10 @@ class AvanzaParser(BaseParser):
                 )
             except ValueError:
                 if skip_unknown_types:
+                    # logger.warning("Unknown transaction type, skipping:\n %s", row)
                     continue
                 else:
                     raise
             except TypeError:
+                # logger.warning("Unknown transaction type, skipping:\n %s", row)
                 continue

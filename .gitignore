@@ -1,4 +1,6 @@
 docs/source
+files
+mappings.csv
 
 # From https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore
 

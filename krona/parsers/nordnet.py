@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from datetime import datetime
 
 import polars as pl
 
@@ -41,6 +40,8 @@ NORDNET_FIELDNAMES = [
 
 
 class NordnetParser(BaseParser):
+    name = "nordnet"
+
     def is_valid_file(self, file_path: str) -> bool:
         try:
             df = pl.read_csv(file_path, separator="\t", encoding="utf-16")
@@ -52,15 +53,29 @@ class NordnetParser(BaseParser):
         if not self.is_valid_file(file_path):
             return
 
-        df = pl.read_csv(file_path, separator="\t", encoding="utf-16", decimal_comma=True).sort(by="Affärsdag")
+        df = pl.read_csv(file_path, separator="\t", encoding="utf-16", decimal_comma=True, try_parse_dates=True).sort(
+            by="Affärsdag"
+        )
         for row in df.iter_rows(named=True):
-            yield Transaction(
-                date=datetime.strptime(row["Affärsdag"], "%Y-%m-%d"),
-                symbol=str(row["Värdepapper"]),
-                transaction_type=TransactionType.from_term(str(row["Transaktionstyp"])),
-                currency=str(row["Valuta"]),
-                ISIN=str(row["ISIN"]),
-                quantity=abs(int(row["Antal"])),
-                price=float(row["Kurs"] or 0.0),
-                fees=float(row["Courtage"] or 0.0),
-            )
+            try:
+                yield Transaction(
+                    date=row["Affärsdag"],
+                    symbol=str(row["Värdepapper"]),
+                    transaction_type=TransactionType.from_term(str(row["Transaktionstyp"])),
+                    currency=str(row["Valuta"]),
+                    ISIN=str(row["ISIN"]),
+                    quantity=abs(int(row["Antal"])),
+                    price=float(row["Kurs"] or 0.0),
+                    fees=float(row["Courtage"] or 0.0),
+                )
+            except ValueError:
+                # TransactionType not found
+                # logger.warning("Possible error in transaction, skipping:\n %s", row)
+                continue
+
+
+if __name__ == "__main__":
+    parser = NordnetParser()
+    print(parser.is_valid_file("nordnet.csv"))
+    for transaction in parser.parse_file("nordnet.csv"):
+        print(transaction)
