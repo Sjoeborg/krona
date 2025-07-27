@@ -49,6 +49,8 @@ class TransactionProcessor:
             case TransactionType.SPLIT:
                 # TODO: make more lenient by triggering this on any transaction type?
                 self._handle_split(transaction, position)
+            case TransactionType.MOVE:
+                self._handle_move(transaction, position)
         position.fees += transaction.fees
         position.transactions.append(transaction)
         self.positions[position.symbol] = position
@@ -81,7 +83,7 @@ class TransactionProcessor:
     def _handle_split(self, transaction: Transaction, position: Position) -> None:
         """Handle a split transaction and update the mapper with the new ISIN if needed."""
         # Process the split using the action processor
-        self.action_processor.handle_split(transaction, position)
+        self.action_processor.handle_split(transaction, position, self.mapper)
 
         # If the transaction has a different ISIN than the position, add a mapping
         if transaction.ISIN and transaction.ISIN != position.ISIN:
@@ -94,10 +96,12 @@ class TransactionProcessor:
             # Update the position's ISIN
             position.ISIN = transaction.ISIN
 
-    def _handle_move_from_unknown_account(self, transaction: Transaction) -> None:
-        """Handle a move from an unknown account."""
+    def _handle_move(self, transaction: Transaction, position: Position) -> None:
+        """Handle a move transaction and update the mapper with the new ISIN if needed."""
         # TODO: how do we distinguish between a split and a move from another account? Do we need to do it?
         # Check for unresolved splits if we have/get a negative quantity?
         # Example: 2016-11-01;ISK;Övrigt;CORRECTIONS CORP COM
-        if transaction.transaction_type == TransactionType.SPLIT and transaction.price == 0:
-            logger.warning("Transaction is probably a move from another account:\n %s", transaction)
+        # print(transaction)
+        # print(position.transactions)
+        # raise
+        pass

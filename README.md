@@ -18,3 +18,4 @@ Transaction tool for Swedish brokers
 - Tweak automatic/manual resolution
 - Fix position transfers between brokers by adding a new action and/or transaction_type
 - What to do with GAV after reopening a closed/moved position?
+- Refactor mapping so that we don't have to rely on get_synonyms

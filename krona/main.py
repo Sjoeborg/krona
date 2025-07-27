@@ -5,7 +5,7 @@ from krona.parsers.nordnet import NordnetParser
 from krona.processor.transaction import TransactionProcessor
 from krona.utils.io import identify_broker_files, read_transactions_from_files
 
-DEBUG_SYMBOLS = ["BAHN B", "BAHNHOF AK B", "Bahnhof B"]
+DEBUG_SYMBOLS = ["BAHN B", "Bahnhof B", "BAHN B.OLD/X", "BAHNHOF AK B"]
 
 
 def main(path: Path):
@@ -21,14 +21,13 @@ def main(path: Path):
         processor.add_transaction(transaction)
         if transaction.symbol in DEBUG_SYMBOLS:
             print(transaction)
-            print(
-                processor.positions.get("BAHN B")
-                or processor.positions.get("BAHNHOF AK B")
-                or processor.positions.get("Bahnhof B")
-            )
+            for symbol in DEBUG_SYMBOLS:
+                print(processor.positions.get(symbol))
     processor.mapper.save_mappings(Path("mappings.csv"))
-    # for position in processor.positions.values():
-    #     print(position)
+
+    print("--------------------------------")
+    for position in processor.positions.values():
+        print(position)
 
 
 if __name__ == "__main__":

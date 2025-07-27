@@ -42,9 +42,8 @@ def test_get_ticker():
     mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])
 
     # Test getting ticker
-    assert mapper._get_ticker("Evolution") == "Evolution"
-    assert mapper._get_ticker("Evolution Gaming Group") == "Evolution"
     assert mapper._get_ticker("EVO") == "Evolution"
+    assert mapper._get_ticker("Evolution Gaming Group") == "Evolution"
     assert mapper._get_ticker("Unknown") == "Unknown"  # Returns the input if not found
 
 
