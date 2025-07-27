@@ -9,7 +9,7 @@ def test_final_position_matches_expected():
     results in the expected final position for BAHN B.OLD/X.
     """
     processor = TransactionProcessor()
-
+    processor.mapper.add_mapping("BAHN B.OLD/X", ["BAHN B", "BAHN B.OLD/X"], isin="SE0002252296")
     # Parse and process Nordnet and Avanza transactions
     nordnet_parser = NordnetParser()
     avanza_parser = AvanzaParser()

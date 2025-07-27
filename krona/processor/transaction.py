@@ -29,7 +29,9 @@ class TransactionProcessor:
         """Upsert a position with a new transaction"""
 
         # Create a new position if symbol does not exist, otherwise update the existing position
-        position = Position.new(transaction) if symbol is None else self.positions[symbol]
+        position = (
+            Position.new(transaction) if symbol is None or symbol not in self.positions else self.positions[symbol]
+        )
 
         # If this is a new position and it has an ISIN, add the mapping
         if symbol is None and transaction.ISIN and position.symbol:

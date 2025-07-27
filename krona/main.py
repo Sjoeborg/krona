@@ -10,6 +10,7 @@ DEBUG_SYMBOLS = ["BAHN B", "BAHNHOF AK B", "Bahnhof B"]
 
 def main(path: Path):
     processor = TransactionProcessor()
+    processor.mapper.load_mappings(Path("mappings.csv"))
     nordnet_parser = NordnetParser()
     avanza_parser = AvanzaParser()
 
@@ -25,7 +26,7 @@ def main(path: Path):
                 or processor.positions.get("BAHNHOF AK B")
                 or processor.positions.get("Bahnhof B")
             )
-
+    processor.mapper.save_mappings(Path("mappings.csv"))
     # for position in processor.positions.values():
     #     print(position)
 

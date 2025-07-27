@@ -74,7 +74,8 @@ def test_mapper_fuzzy_matching():
     # Test fuzzy matching
     known_symbols = {"Evolution", "Investor B"}
     # This should match "Evolution" with a high score
-    assert mapper._match_symbol("Evoluton", known_symbols) == "Evolution"
+
+    assert mapper._match_symbol("Evolution AB", known_symbols) == "Evolution"
     # This should not match anything (score too low)
     with patch.object(mapper, "_prompt_user_for_resolution", return_value=None):
         assert mapper._match_symbol("XYZ", known_symbols) is None

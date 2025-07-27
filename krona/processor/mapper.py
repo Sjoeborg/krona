@@ -23,16 +23,12 @@ class Mapper:
     """Maps attributes between different brokers using explicit mappings, fuzzy matching, and interactive resolution."""
 
     def __init__(self) -> None:
-        # Dictionary mapping tickers to sets of alternative symbols
-        self._mappings: dict[str, set[str]] = {}
         # Dictionary mapping alternative symbols to their ticker
-        self._reverse_mappings: dict[str, str] = {}
+        self._mappings: dict[str, str] = {}
         # New ISIN mappings
         self._isin_mappings: dict[str, str] = {}  # ISIN -> ticker
         # Cache of user resolutions to avoid asking multiple times for the same symbol
         self._resolution_cache: dict[str, str | None] = {}
-        # Load mappings from file
-        self.load_mappings(Path("mappings.csv"))
 
     def load_mappings(self, path: Path) -> None:
         """Load mappings from a file."""
@@ -61,18 +57,12 @@ class Mapper:
             alternative_symbols: List of alternative representations of the same symbol
             isin: Optional ISIN code for the security
         """
-        # Ensure ticker is in mappings
-        if ticker not in self._mappings:
-            self._mappings[ticker] = set()
-
         # Add all alternative symbols
         for alt_symbol in alternative_symbols:
-            self._mappings[ticker].add(alt_symbol)
-            self._reverse_mappings[alt_symbol] = ticker
+            self._mappings[alt_symbol] = ticker
 
         # Add ticker to its own alternatives for completeness
-        self._mappings[ticker].add(ticker)
-        self._reverse_mappings[ticker] = ticker
+        self._mappings[ticker] = ticker
 
         # Add ISIN mapping if provided
         if isin:
@@ -133,7 +123,7 @@ class Mapper:
             return self._isin_mappings[isin]
 
         # Fall back to regular mappings
-        return self._reverse_mappings.get(symbol, symbol)
+        return self._mappings.get(symbol, symbol)
 
     def _match_symbol(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
         """Match a symbol to a known symbol using explicit mappings, fuzzy matching, and interactive resolution.
@@ -151,7 +141,6 @@ class Mapper:
         """
         # First try automatic matching
         matched_symbol = self._automatic_match(symbol, known_symbols, isin)
-
         # If automatic matching failed, try interactive resolution
         if matched_symbol is None:
             matched_symbol = self._interactive_resolve(symbol, known_symbols)
@@ -172,6 +161,9 @@ class Mapper:
         # First check if we have an exact match
         if symbol in known_symbols:
             return symbol
+
+        if symbol in self._mappings:
+            return self._mappings[symbol]
 
         # Then check if we have a ticker mapping
         ticker = self._get_ticker(symbol, isin)
@@ -233,7 +225,6 @@ class Mapper:
 
         # Cache the result
         self._resolution_cache[symbol] = user_choice
-        self.save_mappings(Path("mappings.csv"))
 
         # If the user provided a mapping, add it to the mappings
         if user_choice is not None and user_choice in known_symbols:

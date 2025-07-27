@@ -113,6 +113,7 @@ def test_isin_matching():
 
 def test_split():
     processor = TransactionProcessor()
+    processor.mapper.add_mapping("BAHN B.OLD/X", ["BAHN B", "BAHN B.OLD/X"], isin="SE0002252296")
     # Manually create transactions
     transactions = [
         Transaction(
