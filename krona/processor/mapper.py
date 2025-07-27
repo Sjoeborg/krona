@@ -15,8 +15,8 @@ from krona.models.position import Position
 from krona.models.transaction import Transaction  # type: ignore
 from krona.utils.logger import logger
 
-INTERACTIVE_SIMILARITY_THRESHOLD = 60
-AUTOMATIC_SIMILARITY_THRESHOLD = 95
+INTERACTIVE_SIMILARITY_THRESHOLD = 87
+AUTOMATIC_SIMILARITY_THRESHOLD = 90
 
 
 class Mapper:
@@ -24,11 +24,9 @@ class Mapper:
 
     def __init__(self) -> None:
         # Dictionary mapping alternative symbols to their ticker
-        self._mappings: dict[str, str] = {}
+        self._mappings: dict[str, str | None] = {}
         # New ISIN mappings
         self._isin_mappings: dict[str, str] = {}  # ISIN -> ticker
-        # Cache of user resolutions to avoid asking multiple times for the same symbol
-        self._resolution_cache: dict[str, str | None] = {}
 
     def load_mappings(self, path: Path) -> None:
         """Load mappings from a file."""
@@ -39,14 +37,14 @@ class Mapper:
             for line in f:
                 symbol, choice = line.strip().split(",")
                 if choice == "None":
-                    self._resolution_cache[symbol] = None
+                    self._mappings[symbol] = None
                 else:
-                    self._resolution_cache[symbol] = choice
+                    self._mappings[symbol] = choice
 
     def save_mappings(self, path: Path) -> None:
         """Save mappings to a file."""
         with open(path, "w") as f:
-            for symbol, choice in self._resolution_cache.items():
+            for symbol, choice in self._mappings.items():
                 f.write(f"{symbol},{choice}\n")
 
     def add_mapping(self, ticker: str, alternative_symbols: list[str], isin: str | None = None) -> None:
@@ -59,10 +57,8 @@ class Mapper:
         """
         # Add all alternative symbols
         for alt_symbol in alternative_symbols:
-            self._mappings[alt_symbol] = ticker
-
-        # Add ticker to its own alternatives for completeness
-        self._mappings[ticker] = ticker
+            if alt_symbol != ticker:
+                self._mappings[alt_symbol] = ticker
 
         # Add ISIN mapping if provided
         if isin:
@@ -123,7 +119,7 @@ class Mapper:
             return self._isin_mappings[isin]
 
         # Fall back to regular mappings
-        return self._mappings.get(symbol, symbol)
+        return self._mappings.get(symbol, symbol) or symbol
 
     def _match_symbol(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
         """Match a symbol to a known symbol using explicit mappings, fuzzy matching, and interactive resolution.
@@ -144,7 +140,8 @@ class Mapper:
         # If automatic matching failed, try interactive resolution
         if matched_symbol is None:
             matched_symbol = self._interactive_resolve(symbol, known_symbols)
-
+        if matched_symbol:
+            self.add_mapping(matched_symbol, [symbol])
         return matched_symbol
 
     def _automatic_match(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
@@ -175,7 +172,7 @@ class Mapper:
         for known in known_symbols:
             known_ticker = self._get_ticker(known)
             if known_ticker == ticker:
-                logger.debug(f"Matched {symbol} to {known} via ticker {ticker}")
+                logger.debug(f"Mapped {symbol} to {known} via ticker {ticker}")
                 return known
 
         # Finally, try fuzzy matching
@@ -183,7 +180,7 @@ class Mapper:
         if matches is not None:
             matched_symbol = cast(str, matches[0])
             score = cast(int, matches[1])
-            logger.debug(f"Fuzzy matched {symbol} to {matched_symbol} with score {score}")
+            logger.info(f"Fuzzy mapped {symbol} to {matched_symbol} with score {score}")
             return matched_symbol
 
         logger.debug(f"No automatic match found for {symbol}")
@@ -203,14 +200,6 @@ class Mapper:
         Returns:
             The resolved symbol or None if no resolution is possible
         """
-        # If we have no known symbols, return None
-        if not known_symbols:
-            return None
-
-        # Check if we've already asked the user about this symbol
-        if symbol in self._resolution_cache:
-            return self._resolution_cache[symbol]
-
         # Try fuzzy matching first to find similar symbols
         matches = process.extract(symbol, known_symbols, limit=3)
         similar_symbols = [match[0] for match in matches if match[1] >= INTERACTIVE_SIMILARITY_THRESHOLD]
@@ -222,9 +211,6 @@ class Mapper:
 
         # Ask the user to resolve the symbol only if we found similar ones
         user_choice = self._prompt_user_for_resolution(symbol, similar_symbols)
-
-        # Cache the result
-        self._resolution_cache[symbol] = user_choice
 
         # If the user provided a mapping, add it to the mappings
         if user_choice is not None and user_choice in known_symbols:
