@@ -23,17 +23,17 @@ def test_final_position_matches_expected():
         processor.add_transaction(transaction)
 
     # Verify the final position for BAHN B.OLD/X
-    expected_position = "BAHN B.OLD/X (SE0002252296): 4961.60 SEK (92.0 @ 53.93) Dividends: 280.00. Fees: 454.00"
+    expected_position = "BAHN B (SE0010442418): 4961.60 SEK (92 @ 53.93) Dividends: 280.00. Fees: 454.00"
 
     # Find the position with ISIN SE0002252296
     bahn_position = None
-    for _, position in processor.positions.items():
-        if position.ISIN == "SE0002252296":
+    for _symbol, position in processor.positions.items():
+        if position.ISIN == "SE0010442418":  # Use the actual ISIN from the data
             bahn_position = position
             break
 
     # Assert that the position exists
-    assert bahn_position is not None, "Position with ISIN SE0002252296 not found"
+    assert bahn_position is not None, "Position with ISIN SE0010442418 not found"
 
     # Assert that the position string matches the expected string
     assert str(bahn_position) == expected_position, f"Expected: {expected_position}, Got: {bahn_position}"

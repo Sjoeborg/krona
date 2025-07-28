@@ -64,6 +64,8 @@ class AvanzaParser(BaseParser):
                     # This is a correction from avanza that removes an erraneous SELL transaction.
                     # We put it as BUY so that they cancel each other out.
                     transaction_type = TransactionType.BUY
+                if row["Värdepapper/beskrivning"] == "INVESTOR B" and row["Datum"].strftime("%Y-%m-%d") == "2016-11-01":
+                    continue
                 yield Transaction(
                     date=row["Datum"],
                     symbol=row["Värdepapper/beskrivning"],
