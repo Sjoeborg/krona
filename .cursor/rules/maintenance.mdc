@@ -1,0 +1,10 @@
+---
+description: documentation maintenance instructions
+alwaysApply: true
+---
+
+* When making changes to the source code, it is important to keep the documentation up to date. This includes the following files:
+   * @README.md : This file should provide a high-level overview of the project, including its architecture and how to use the tool.
+   * @.cursor/rules/architecture.mdc: This file should provide a detailed description of the project's architecture, including the roles and responsibilities of each module.
+
+* When you modify the source code, you should also consider updating these files to reflect the changes. This will ensure that the documentation is always accurate and up-to-date, which is essential for both human developers and other LLMs that may work on this codebase in the future.

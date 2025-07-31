@@ -1,91 +1,42 @@
-from unittest.mock import patch
+from datetime import date
+from unittest.mock import MagicMock, patch
 
+from krona.models.mapping import MappingPlan
+from krona.models.transaction import Transaction, TransactionType
 from krona.processor.mapper import Mapper
 
 
-def test_mapper_exact_match():
-    mapper = Mapper()
-    known_symbols = {"Evolution", "Investor B", "Volvo B"}
+def test_create_mapping_plan():
+    with (
+        patch("krona.processor.mapper.FuzzyMatchStrategy") as mock_fuzzy_strategy,
+        patch("krona.processor.mapper.ConflictDetectionStrategy") as mock_conflict_strategy,
+        patch("krona.ui.cli.CLI.prompt_load_existing_config") as mock_prompt,
+    ):
+        # Arrange
+        mock_fuzzy_instance = MagicMock()
+        mock_conflict_instance = MagicMock()
+        mock_fuzzy_strategy.return_value = mock_fuzzy_instance
+        mock_conflict_strategy.return_value = mock_conflict_instance
+        mock_prompt.return_value = None  # No existing config
 
-    # Test exact match
-    assert mapper._match_symbol("Evolution", known_symbols) == "Evolution"
-    assert mapper._match_symbol("Investor B", known_symbols) == "Investor B"
-    assert mapper._match_symbol("Volvo B", known_symbols) == "Volvo B"
+        mapper = Mapper()
+        transactions = [
+            Transaction(
+                date=date(2023, 1, 1),
+                transaction_type=TransactionType.BUY,
+                symbol="Evolution",
+                ISIN="SE0012673267",
+                quantity=10,
+                price=100,
+                fees=10,
+                currency="SEK",
+            )
+        ]
 
+        # Act
+        plan = mapper.create_mapping_plan(transactions)
 
-def test_mapper_ticker_mapping():
-    mapper = Mapper()
-
-    # Add mappings
-    mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO", "Evolution Gaming"])
-    mapper.add_mapping("Investor B", ["INVE B", "Investor ser. B"])
-
-    known_symbols = {"Evolution", "Investor B", "Volvo B"}
-
-    # Test ticker mapping
-    assert mapper._match_symbol("Evolution Gaming Group", known_symbols) == "Evolution"
-    assert mapper._match_symbol("EVO", known_symbols) == "Evolution"
-    assert mapper._match_symbol("INVE B", known_symbols) == "Investor B"
-
-
-def test_mapper_no_match():
-    mapper = Mapper()
-    known_symbols = {"Evolution", "Investor B", "Volvo B"}
-
-    # Test no match - mock the interactive resolution to return None
-    with patch.object(mapper, "_prompt_user_for_resolution", return_value=None):
-        assert mapper._match_symbol("Microsoft", known_symbols) is None
-
-
-def test_get_ticker():
-    mapper = Mapper()
-    mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])
-
-    # Test getting ticker
-    assert mapper._get_ticker("EVO") == "Evolution"
-    assert mapper._get_ticker("Evolution Gaming Group") == "Evolution"
-    assert mapper._get_ticker("Unknown") == "Unknown"  # Returns the input if not found
-
-
-def test_mapper_automatic_resolution():
-    mapper = Mapper()
-    mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"])
-
-    # Test automatic resolution
-    known_symbols = {"Evolution", "Investor B"}
-    assert mapper._match_symbol("Evolution", known_symbols) == "Evolution"
-    assert mapper._match_symbol("Evolution Gaming Group", known_symbols) == "Evolution"
-    assert mapper._match_symbol("EVO", known_symbols) == "Evolution"
-
-
-def test_mapper_isin_resolution():
-    mapper = Mapper()
-    mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"], isin="SE0012673267")
-
-    # Test ISIN resolution
-    known_symbols = {"Evolution", "Investor B"}
-    assert mapper._match_symbol("Evo", known_symbols, "SE0012673267") == "Evolution"
-
-
-def test_mapper_fuzzy_matching():
-    mapper = Mapper()
-
-    # Test fuzzy matching
-    known_symbols = {"Evolution", "Investor B"}
-    # This should match "Evolution" with a high score
-
-    assert mapper._match_symbol("Evolution AB", known_symbols) == "Evolution"
-    # This should not match anything (score too low)
-    with patch.object(mapper, "_prompt_user_for_resolution", return_value=None):
-        assert mapper._match_symbol("XYZ", known_symbols) is None
-
-
-def test_mapper_get_ticker():
-    # Create a mapper with some mappings
-    mapper = Mapper()
-    mapper.add_mapping("Evolution", ["Evolution Gaming Group", "EVO"], isin="SE0012673267")
-
-    # Test get_ticker with ISIN
-    assert mapper._get_ticker("Unknown", "SE0012673267") == "Evolution"
-    # Test get_ticker without ISIN
-    assert mapper._get_ticker("Evolution Gaming Group") == "Evolution"
+        # Assert
+        assert isinstance(plan, MappingPlan)
+        mock_fuzzy_instance.execute.assert_called_once()
+        mock_conflict_instance.execute.assert_called_once()

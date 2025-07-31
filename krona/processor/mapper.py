@@ -8,52 +8,18 @@ This module provides a two-phase approach:
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import yaml
-from thefuzz import fuzz
 
+from krona.models.mapping import MappingPlan, SymbolGroup
 from krona.models.position import Position
+from krona.models.suggestion import Suggestion
 from krona.models.transaction import Transaction  # type: ignore
+from krona.processor.strategies.conflict_detection import ConflictDetectionStrategy
+from krona.processor.strategies.fuzzy_match import FuzzyMatchStrategy
+from krona.processor.strategies.fuzzy_match_position import FuzzyMatchPositionStrategy
 from krona.utils.logger import logger
-
-
-@dataclass
-class SymbolGroup:
-    """Represents a group of symbols and ISINs that map to a canonical symbol."""
-
-    canonical_symbol: str
-    synonyms: list[str]
-    isins: list[str]
-
-    def __post_init__(self):
-        # Ensure lists are initialized
-        if self.synonyms is None:
-            self.synonyms = []
-        if self.isins is None:
-            self.isins = []
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for YAML serialization."""
-        return {"synonyms": self.synonyms, "ISINs": self.isins}
-
-    @classmethod
-    def from_dict(cls, canonical_symbol: str, data: dict[str, Any]) -> SymbolGroup:
-        """Create from dictionary for YAML deserialization."""
-        return cls(canonical_symbol=canonical_symbol, synonyms=data.get("synonyms", []), isins=data.get("ISINs", []))
-
-
-@dataclass
-class MappingPlan:
-    """Represents a mapping plan with all symbol and ISIN mappings."""
-
-    symbol_mappings: dict[str, str]  # alternative_symbol -> canonical_symbol
-    isin_mappings: dict[str, str]  # isin -> canonical_symbol
-    conflicts: list[str]  # unresolved conflicts that need user input
-    accepted_suggestions: list[str]  # suggestions that have been accepted
-    denied_suggestions: list[str]  # suggestions that have been denied
 
 
 class Mapper:
@@ -82,36 +48,6 @@ class Mapper:
         if isin and isin not in group.isins:
             group.isins.append(isin)
             self._isin_mappings[isin] = canonical
-
-    def _match_symbol(self, symbol: str, known_symbols: set[str], isin: str | None = None) -> str | None:
-        """Match a symbol to a known symbol using exact and fuzzy matching."""
-        # Try exact match first
-        if symbol in known_symbols:
-            return symbol
-
-        # Try symbol mapping first
-        if symbol in self._symbol_mappings:
-            canonical = self._symbol_mappings[symbol]
-            if canonical in known_symbols:
-                return canonical
-
-        # Try case-insensitive match
-        for known_symbol in known_symbols:
-            if known_symbol.lower() == symbol.lower():
-                return known_symbol
-
-        # Try fuzzy matching
-        for known_symbol in known_symbols:
-            if self._fuzzy_match(symbol, known_symbol):
-                return known_symbol
-
-        # Try ISIN matching if ISIN is provided
-        if isin and isin in self._isin_mappings:
-            canonical = self._isin_mappings[isin]
-            if canonical in known_symbols:
-                return canonical
-
-        return None
 
     def _prompt_user_for_resolution(self, symbol: str, known_symbols: set[str]) -> str | None:
         """Prompt user for resolution of an unknown symbol. This is a stub for testing."""
@@ -150,22 +86,27 @@ class Mapper:
                 isin_mappings[isin] = canonical_symbol
 
         # Find fuzzy matches for symbols that share ISINs
-        fuzzy_suggestions = self._find_fuzzy_matches(symbol_to_isins, isin_to_symbols)
-
-        # Add fuzzy matches to conflicts for user review
-        conflicts = self._detect_conflicts(symbol_mappings, isin_mappings)
-        conflicts.extend(fuzzy_suggestions)
-
-        # Load previously accepted/denied suggestions
-        accepted_suggestions, denied_suggestions = self._load_previous_decisions()
-
-        return MappingPlan(
+        plan = MappingPlan(
             symbol_mappings=symbol_mappings,
             isin_mappings=isin_mappings,
-            conflicts=conflicts,
-            accepted_suggestions=accepted_suggestions,
-            denied_suggestions=denied_suggestions,
+            suggestions=[],  # Initialize suggestions as empty
         )
+        fuzzy_match_strategy = FuzzyMatchStrategy()
+        fuzzy_match_strategy.execute(
+            plan=plan,
+            symbol_to_isins=symbol_to_isins,
+            isin_to_symbols=isin_to_symbols,
+            transactions=transactions,
+        )
+
+        # Add fuzzy matches to conflicts for user review
+        conflict_detection_strategy = ConflictDetectionStrategy()
+        conflict_detection_strategy.execute(plan=plan)
+
+        # Load previously accepted/denied suggestions
+        self._load_previous_decisions()
+
+        return plan
 
     def accept_plan(self, plan: MappingPlan) -> None:
         """Accept a mapping plan and convert to symbol groups."""
@@ -179,28 +120,12 @@ class Mapper:
     def match_transaction_to_position(self, transaction: Transaction, positions: dict[str, Position]) -> str | None:
         """Match a transaction to an existing position."""
         canonical_symbol = self._get_canonical_symbol(transaction)
-
-        # Try exact match first
-        if canonical_symbol in positions:
-            return canonical_symbol
-
-        # Try case-insensitive match
-        for position_symbol in positions:
-            if position_symbol.lower() == canonical_symbol.lower():
-                return position_symbol
-
-        # Try fuzzy matching as fallback
-        for position_symbol in positions:
-            if self._fuzzy_match(canonical_symbol, position_symbol):
-                return position_symbol
-
-        # Try direct ISIN matching if transaction has an ISIN
-        if transaction.ISIN:
-            for position_symbol, position in positions.items():
-                if position.ISIN == transaction.ISIN:
-                    return position_symbol
-
-        return None
+        strategy = FuzzyMatchPositionStrategy()
+        return strategy.execute(
+            transaction=transaction,
+            positions=positions,
+            canonical_symbol=canonical_symbol,
+        )
 
     def _get_canonical_symbol(self, transaction: Transaction) -> str:
         """Get the canonical symbol for a transaction."""
@@ -362,28 +287,35 @@ class Mapper:
         return merged_groups
 
     def _load_existing_mappings(self) -> None:
-        """Load existing mappings from the mappings.yml file."""
-        mappings_path = Path("mappings.yml")
-        if not mappings_path.exists():
+        """Load existing mappings from the mappings.yml file with user prompt."""
+        from krona.ui.cli import CLI
+
+        existing_plan = CLI.prompt_load_existing_config()
+        if not existing_plan:
             return
 
         try:
-            with open(mappings_path) as f:
-                data = yaml.safe_load(f)
-                if not data:
-                    return
+            # Load from the existing plan
+            for source_symbol, canonical_symbol in existing_plan.symbol_mappings.items():
+                self._symbol_mappings[source_symbol] = canonical_symbol
 
-                for canonical_symbol, group_data in data.items():
-                    group = SymbolGroup.from_dict(canonical_symbol, group_data)
-                    self._symbol_groups[canonical_symbol] = group
+                # Update symbol groups
+                if canonical_symbol not in self._symbol_groups:
+                    self._symbol_groups[canonical_symbol] = SymbolGroup(canonical_symbol=canonical_symbol)
+                if source_symbol not in self._symbol_groups[canonical_symbol].synonyms:
+                    self._symbol_groups[canonical_symbol].synonyms.append(source_symbol)
 
-                    # Create backward-compatible mappings
-                    for synonym in group.synonyms:
-                        self._symbol_mappings[synonym] = canonical_symbol
-                    for isin in group.isins:
-                        self._isin_mappings[isin] = canonical_symbol
+            for isin, canonical_symbol in existing_plan.isin_mappings.items():
+                self._isin_mappings[isin] = canonical_symbol
+
+                # Update symbol groups
+                if canonical_symbol not in self._symbol_groups:
+                    self._symbol_groups[canonical_symbol] = SymbolGroup(canonical_symbol=canonical_symbol)
+                if isin not in self._symbol_groups[canonical_symbol].isins:
+                    self._symbol_groups[canonical_symbol].isins.append(isin)
+
         except Exception as e:
-            logger.warning(f"Failed to load mappings.yml: {e}")
+            logger.warning(f"Failed to load existing mappings: {e}")
 
     def save_mappings(self, path: Path) -> None:
         """Save current mappings to a YAML file."""
@@ -399,7 +331,12 @@ class Mapper:
         with open(path, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=True)
 
-    def save_decisions(self, accepted_suggestions: list[str], denied_suggestions: list[str], path: Path) -> None:
+    def save_decisions(
+        self,
+        accepted_suggestions: list[Suggestion],
+        denied_suggestions: list[Suggestion],
+        path: Path,
+    ) -> None:
         """Save accepted and denied suggestions to a YAML file."""
         # Load existing data if it exists
         existing_data = {}
@@ -411,33 +348,15 @@ class Mapper:
                 logger.warning(f"Failed to load existing mappings.yml: {e}")
 
         # Update with new decisions
-        existing_data["accepted_suggestions"] = accepted_suggestions
-        existing_data["denied_suggestions"] = denied_suggestions
+        existing_data["accepted_suggestions"] = [s.rationale for s in accepted_suggestions]
+        existing_data["denied_suggestions"] = [s.rationale for s in denied_suggestions]
 
         with open(path, "w") as f:
             yaml.dump(existing_data, f, default_flow_style=False, sort_keys=True)
 
     def _load_previous_decisions(self) -> tuple[list[str], list[str]]:
         """Load previously accepted and denied suggestions from mappings.yml."""
-        decisions_path = Path("mappings.yml")
-        if not decisions_path.exists():
-            return [], []
-
-        try:
-            with open(decisions_path) as f:
-                data = yaml.safe_load(f)
-                if not data:
-                    return [], []
-
-                # Check if this is the new format with decisions
-                if isinstance(data, dict) and ("accepted_suggestions" in data or "denied_suggestions" in data):
-                    return data.get("accepted_suggestions", []), data.get("denied_suggestions", [])
-                else:
-                    # Old format - no previous decisions
-                    return [], []
-        except Exception as e:
-            logger.warning(f"Failed to load decisions from mappings.yml: {e}")
-            return [], []
+        return [], []
 
     def _select_canonical_isin(self, isins: set[str], transactions: list[Transaction]) -> str | None:
         """Select the canonical ISIN from a set of ISINs."""
@@ -468,177 +387,3 @@ class Mapper:
             return max(symbol_counts.keys(), key=lambda symbol: symbol_counts[symbol])
 
         return None
-
-    def _detect_conflicts(self, symbol_mappings: dict[str, str], isin_mappings: dict[str, str]) -> list[str]:
-        """Detect conflicts in mappings."""
-        conflicts = []
-
-        # Check for circular mappings
-        for source, target in symbol_mappings.items():
-            if target in symbol_mappings and symbol_mappings[target] == source:
-                conflicts.append(f"Circular mapping: {source} <-> {target}")
-
-        return conflicts
-
-    def _fuzzy_match(self, symbol1: str, symbol2: str) -> bool:
-        """Enhanced fuzzy matching for symbols using multiple strategies."""
-        # Remove common suffixes and prefixes
-        s1 = symbol1.replace("_OLD", "").replace("_NEW", "").replace(".OLD/X", "").strip()
-        s2 = symbol2.replace("_OLD", "").replace("_NEW", "").replace(".OLD/X", "").strip()
-
-        # Try exact match first (case insensitive)
-        if s1.lower() == s2.lower():
-            return True
-
-        # Use multiple fuzzy matching strategies
-        ratio = fuzz.ratio(s1.lower(), s2.lower())
-        partial_ratio = fuzz.partial_ratio(s1.lower(), s2.lower())
-        token_sort_ratio = fuzz.token_sort_ratio(s1.lower(), s2.lower())
-        token_set_ratio = fuzz.token_set_ratio(s1.lower(), s2.lower())
-
-        # Check if any of the ratios are high enough
-        if ratio >= 80 or partial_ratio >= 80 or token_sort_ratio >= 80 or token_set_ratio >= 80:
-            return True
-
-        # Special cases for common patterns
-        # Handle cases like "SWEDISH MATCH" vs "SWMA" (acronyms)
-        return (len(s1) <= 4 and len(s2) > 4 and self._is_acronym(s1, s2)) or (
-            len(s2) <= 4 and len(s1) > 4 and self._is_acronym(s2, s1)
-        )
-
-    def _is_acronym(self, short: str, long: str) -> bool:
-        """Check if short string could be an acronym of long string."""
-        # Remove common words that are often omitted in acronyms
-        common_words = {
-            "AB",
-            "AKTIEBOLAG",
-            "GAMING",
-            "GROUP",
-            "GR",
-            "HOLDING",
-            "HLD",
-            "INTERNATIONAL",
-            "INT",
-            "CORPORATION",
-            "CORP",
-        }
-
-        # Split long string into words
-        words = long.upper().split()
-
-        # Filter out common words
-        filtered_words = [word for word in words if word not in common_words]
-
-        # Check if short string matches first letters of filtered words
-        if len(filtered_words) >= len(short):
-            acronym = "".join(word[0] for word in filtered_words[: len(short)])
-            return acronym == short.upper()
-
-        return False
-
-    def _find_fuzzy_matches(
-        self, symbol_to_isins: dict[str, set[str]], isin_to_symbols: dict[str, set[str]]
-    ) -> list[str]:
-        """Find potential fuzzy matches for symbols that share ISINs or are similar with different ISINs."""
-        suggestions = []
-
-        # Group symbols by ISIN
-        for isin, symbols in isin_to_symbols.items():
-            if len(symbols) > 1:
-                symbol_list = list(symbols)
-
-                # Check each pair of symbols for fuzzy matches
-                for i, symbol1 in enumerate(symbol_list):
-                    for symbol2 in symbol_list[i + 1 :]:
-                        # Skip if already mapped
-                        if symbol1 in self._symbol_mappings or symbol2 in self._symbol_mappings:
-                            continue
-
-                        # Check fuzzy match
-                        if self._fuzzy_match(symbol1, symbol2):
-                            similarity = fuzz.ratio(symbol1.lower(), symbol2.lower())
-                            suggestions.append(
-                                (
-                                    similarity,
-                                    f"Fuzzy match ({similarity}%): '{symbol1}' and '{symbol2}' share ISIN {isin}",
-                                )
-                            )
-
-        # Also check for potential corporate actions (similar symbols with different ISINs)
-        all_symbols = list(symbol_to_isins.keys())
-        for i, symbol1 in enumerate(all_symbols):
-            for symbol2 in all_symbols[i + 1 :]:
-                # Skip if already mapped
-                if symbol1 in self._symbol_mappings or symbol2 in self._symbol_mappings:
-                    continue
-
-                # Check if symbols are very similar (higher threshold for different ISINs)
-                if self._fuzzy_match_corporate_action(symbol1, symbol2):
-                    similarity = fuzz.ratio(symbol1.lower(), symbol2.lower())
-                    # Only suggest if similarity is above minimum threshold
-                    if similarity >= 25:
-                        isin1 = next(iter(symbol_to_isins[symbol1])) if symbol_to_isins[symbol1] else "Unknown"
-                        isin2 = next(iter(symbol_to_isins[symbol2])) if symbol_to_isins[symbol2] else "Unknown"
-                        suggestions.append(
-                            (
-                                similarity,
-                                f"Potential corporate action ({similarity}%): '{symbol1}' ({isin1}) and '{symbol2}' ({isin2})",
-                            )
-                        )
-
-        # Sort by similarity (highest first) and return only the suggestion strings
-        suggestions.sort(key=lambda x: x[0], reverse=True)
-        return [suggestion[1] for suggestion in suggestions]
-
-    def _fuzzy_match_corporate_action(self, symbol1: str, symbol2: str) -> bool:
-        """Enhanced fuzzy matching for potential corporate actions."""
-        # Remove common suffixes and prefixes
-        s1 = symbol1.replace("_OLD", "").replace("_NEW", "").replace(".OLD/X", "").strip()
-        s2 = symbol2.replace("_OLD", "").replace("_NEW", "").replace(".OLD/X", "").strip()
-
-        # Try exact match first (case insensitive)
-        if s1.lower() == s2.lower():
-            return True
-
-        # Use multiple fuzzy matching strategies with higher threshold for corporate actions
-        ratio = fuzz.ratio(s1.lower(), s2.lower())
-        partial_ratio = fuzz.partial_ratio(s1.lower(), s2.lower())
-        token_sort_ratio = fuzz.token_sort_ratio(s1.lower(), s2.lower())
-        token_set_ratio = fuzz.token_set_ratio(s1.lower(), s2.lower())
-
-        # Higher threshold for corporate actions (90% instead of 85%)
-        if ratio > 90 or partial_ratio > 90 or token_sort_ratio > 90 or token_set_ratio > 90:
-            return True
-
-        # Special cases for corporate actions
-        # Handle cases like "EVOLUTION GAMING GR" vs "Evolution"
-        return bool(self._is_corporate_action_match(s1, s2))
-
-    def _is_corporate_action_match(self, symbol1: str, symbol2: str) -> bool:
-        """Check if two symbols might be related through a corporate action."""
-        s1_lower = symbol1.lower()
-        s2_lower = symbol2.lower()
-
-        # Handle Evolution Gaming case
-        if (
-            "evolution" in s1_lower
-            and "evolution" in s2_lower
-            and (
-                ("gaming gr" in s1_lower and "gaming gr" not in s2_lower)
-                or ("gaming gr" in s2_lower and "gaming gr" not in s1_lower)
-            )
-        ):
-            return True
-
-        # Handle other common corporate action patterns
-        # Remove common corporate suffixes and compare
-        suffixes_to_remove = [" gaming gr", " group", " gr", " ab", " aktiebolag", " corp", " corporation"]
-
-        s1_clean = s1_lower
-        s2_clean = s2_lower
-
-        for suffix in suffixes_to_remove:
-            s1_clean = s1_clean.replace(suffix, "")
-            s2_clean = s2_clean.replace(suffix, "")
-
-        return bool(s1_clean == s2_clean and s1_clean)

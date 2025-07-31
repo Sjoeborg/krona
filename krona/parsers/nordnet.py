@@ -58,9 +58,14 @@ class NordnetParser(BaseParser):
         )
         for row in df.iter_rows(named=True):
             try:
+                symbol = str(row["Värdepapper"]).strip()
+                for suffix in [".OLD", ".OLD/X", ".OLD/Y"]:
+                    if symbol.endswith(suffix):
+                        symbol = symbol.replace(suffix, "").strip()
+
                 yield Transaction(
                     date=row["Affärsdag"],
-                    symbol=str(row["Värdepapper"]),
+                    symbol=symbol,
                     transaction_type=TransactionType.from_term(str(row["Transaktionstyp"])),
                     currency=str(row["Valuta"]),
                     ISIN=str(row["ISIN"]),
