@@ -41,4 +41,4 @@ The project is divided into the following modules:
 ## Todo
 - Implement more transaction types (M&A for e.g. SWMA)
 - Implement realized gains for non-closed positions?
-- What to do with GAV after reopening a closed/moved position?
+- Fix moves by only emitting one MOVE instead of two, and one MOVE instead of a SELL and a BUY
