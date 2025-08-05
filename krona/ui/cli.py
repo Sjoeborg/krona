@@ -16,8 +16,13 @@ AUTO_ACCEPT_CONFIDENCE = 0.9
 
 
 class CLI:
-    def __init__(self, plan: MappingPlan | None = None) -> None:
+    def __init__(
+        self,
+        plan: MappingPlan | None = None,
+        suggestions: list[Suggestion] | None = None,
+    ) -> None:
         self.plan = plan
+        self.suggestions = suggestions or []
         self.console = Console()
 
     def display_positions(self, positions: list[Position]) -> None:
@@ -26,6 +31,7 @@ class CLI:
         table.add_column("Symbol", style="cyan")
         table.add_column("ISIN", style="blue")
         table.add_column("Quantity", style="yellow")
+        table.add_column("Average Price", style="yellow")
         table.add_column("Cost Basis", style="green")
         table.add_column("Dividends", style="green")
         table.add_column("Fees", style="red")
@@ -35,7 +41,8 @@ class CLI:
             table.add_row(
                 position.symbol,
                 position.ISIN,
-                f"{position.quantity:.2f}",
+                f"{int(position.quantity)}",
+                f"{position.price:.2f} {position.currency}",
                 f"{position.cost_basis:.2f} {position.currency}",
                 f"{position.dividends:.2f} {position.currency}",
                 f"{position.fees:.2f} {position.currency}",
@@ -58,7 +65,10 @@ class CLI:
 
         if Confirm.ask("Would you like to load the existing mapping configuration?"):
             existing_plan = load_mapping_config(config_file)
-            if existing_plan is None:
+            if existing_plan:
+                cli = cls(plan=existing_plan)
+                cli._handle_existing_mappings()
+            else:
                 console.print(f"[bold red]Error loading mapping configuration from {config_file}[/bold red]")
             return existing_plan
 
@@ -71,6 +81,13 @@ class CLI:
         self._handle_high_confidence_suggestions()
         self._handle_low_confidence_suggestions()
         return self.plan
+
+    def _handle_existing_mappings(self) -> None:
+        """Handle existing mappings."""
+        if self.plan:
+            suggestions = Suggestion.from_mapping_plan(self.plan)
+            self.console.print("[bold green]Existing mappings[/bold green]")
+            self._handle_suggestions(suggestions, pre_selected=True)
 
     def _handle_suggestions(self, suggestions: list[Suggestion], pre_selected: bool) -> None:
         if not suggestions:
@@ -158,7 +175,7 @@ class CLI:
                 suggestion.target_symbol,
                 f"[{isin_color}]{suggestion.source_isin or 'N/A'}[/]",
                 f"[{isin_color}]{suggestion.target_isin or 'N/A'}[/]",
-                f"{suggestion.confidence:.0%}",
+                f"{suggestion.confidence:.0%}" if suggestion.confidence is not None else "N/A",
                 suggestion.rationale,
             )
 
@@ -232,7 +249,9 @@ class CLI:
         """Handle high-confidence suggestions."""
         if self.plan:
             high_confidence_suggestions = [
-                s for s in self.plan.pending_suggestions if s.confidence >= AUTO_ACCEPT_CONFIDENCE
+                s
+                for s in self.plan.pending_suggestions
+                if s.confidence is not None and s.confidence >= AUTO_ACCEPT_CONFIDENCE
             ]
             self.console.print("[bold green]High-confidence suggestions[/bold green]")
             self._handle_suggestions(high_confidence_suggestions, pre_selected=True)
@@ -241,14 +260,15 @@ class CLI:
         """Handle low-confidence suggestions."""
         if self.plan:
             low_confidence_suggestions = [
-                s for s in self.plan.pending_suggestions if s.confidence < AUTO_ACCEPT_CONFIDENCE
+                s
+                for s in self.plan.pending_suggestions
+                if s.confidence is not None and s.confidence < AUTO_ACCEPT_CONFIDENCE
             ]
             self.console.print("[bold yellow]Low-confidence suggestions[/bold yellow]")
             self._handle_suggestions(low_confidence_suggestions, pre_selected=False)
 
     def _parse_id_or_range(self, id_or_range: str) -> tuple[int, int]:
         """Parse a single numerical ID or a range of IDs separated by a dash.
-
         Returns a tuple of the start and end indices for us to loop over.
         """
         if "-" in id_or_range:

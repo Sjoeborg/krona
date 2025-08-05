@@ -6,6 +6,12 @@ from krona.processor.transaction import TransactionProcessor
 from krona.ui.cli import CLI
 from krona.utils.io import identify_broker_files, read_transactions_from_files
 
+DEBUG_SYMBOLS = {
+    "SWEDISH MATCH",
+    "SWEDISH MATCH AB",
+    "SWMA",
+}
+
 
 def main(path: Path):
     """Main function to process transaction files."""
@@ -31,6 +37,9 @@ def main(path: Path):
 
     for transaction in transactions:
         processor.add_transaction(transaction)
+        if DEBUG_SYMBOLS is not None and transaction.symbol in DEBUG_SYMBOLS:
+            print(transaction)
+            print(processor.positions.get(transaction.symbol))
 
     # Display final positions
     cli.display_positions(list(processor.positions.values()))

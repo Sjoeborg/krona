@@ -15,7 +15,7 @@ import yaml
 from krona.models.mapping import MappingPlan, SymbolGroup
 from krona.models.position import Position
 from krona.models.suggestion import Suggestion
-from krona.models.transaction import Transaction  # type: ignore
+from krona.models.transaction import Transaction
 from krona.processor.strategies.conflict_detection import ConflictDetectionStrategy
 from krona.processor.strategies.fuzzy_match import FuzzyMatchStrategy
 from krona.processor.strategies.fuzzy_match_position import FuzzyMatchPositionStrategy
