@@ -4,6 +4,7 @@ from pytest import approx
 
 from krona.models.position import Position
 from krona.models.transaction import Transaction, TransactionType
+from krona.processor.position import apply_transaction
 
 
 def test_position_apply_buy_transaction():
@@ -32,7 +33,7 @@ def test_position_apply_buy_transaction():
         fees=5,
         currency="USD",
     )
-    position.apply_transaction(transaction)
+    position = apply_transaction(position, transaction)
 
     assert position.quantity == 15
     assert position.price == approx((10 * 150 + 5 * 160 + 5) / 15)
@@ -65,7 +66,7 @@ def test_position_apply_sell_transaction():
         fees=5,
         currency="USD",
     )
-    position.apply_transaction(transaction)
+    position = apply_transaction(position, transaction)
 
     assert position.quantity == 5
     assert position.price == approx(150)
@@ -98,7 +99,7 @@ def test_position_apply_dividend_transaction():
         fees=0,
         currency="USD",
     )
-    position.apply_transaction(transaction)
+    position = apply_transaction(position, transaction)
 
     assert position.dividends == approx(2.3)
     assert position.fees == 0
@@ -130,7 +131,7 @@ def test_position_apply_split_transaction():
         fees=0,
         currency="SEK",
     )
-    position.apply_transaction(split1)
+    position = apply_transaction(position, split1)
 
     assert len(position.transaction_buffer) == 1
 
@@ -144,7 +145,7 @@ def test_position_apply_split_transaction():
         fees=0,
         currency="SEK",
     )
-    position.apply_transaction(split2)
+    position = apply_transaction(position, split2)
 
     assert position.quantity == 230
     assert position.price == approx(214.5 / 10)

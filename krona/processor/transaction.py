@@ -1,6 +1,7 @@
 from krona.models.position import Position
 from krona.models.transaction import Transaction
 from krona.processor.mapper import Mapper
+from krona.processor.position import apply_transaction
 from krona.utils.logger import logger
 
 
@@ -74,6 +75,6 @@ class TransactionProcessor:
     def _upsert_position(self, transaction: Transaction, symbol: str | None) -> None:
         """Upsert a position with a new transaction"""
         position, symbol = self._find_or_create_position(transaction, symbol)
-        position.apply_transaction(transaction)
+        position = apply_transaction(position, transaction)
         self.positions[symbol] = position
         self.history[symbol] = [*self.history.get(symbol, []), transaction]
