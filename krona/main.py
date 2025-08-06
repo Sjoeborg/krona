@@ -52,7 +52,6 @@ def main(path: Path, ui_mode: str = "tui"):
 
     # Phase 1: Create mapping plan
     print("\nCreating mapping plan...")
-
     # Handle existing mapping configuration based on UI mode
     if ui_mode == "cli":
         existing_plan = CLI.prompt_load_existing_config()
@@ -61,24 +60,25 @@ def main(path: Path, ui_mode: str = "tui"):
     elif ui_mode == "tui":
         # For TUI, load existing config silently and let TUI handle the display
         plan = processor.mapper.create_mapping_plan(transactions)
-        ui = TUIWrapper(plan, processor=processor)
+        ui = TUIWrapper(plan, suggestions=[], processor=processor, transactions=transactions)
     else:
         raise ValueError(f"Unknown UI mode: {ui_mode}")
 
     # Run the UI and get the updated plan
     plan = ui.run()
 
-    # Accept the plan and process transactions
-    processor.mapper.accept_plan(plan)
+    # TODO: make this part of the CLI
+    if ui_mode == "cli":
+        # Accept the plan and process transactions
+        processor.mapper.accept_plan(plan)
+        for transaction in transactions:
+            processor.add_transaction(transaction)
+            if DEBUG_SYMBOLS is not None and transaction.symbol in DEBUG_SYMBOLS:
+                print(transaction)
+                print(processor.positions.get(transaction.symbol))
 
-    for transaction in transactions:
-        processor.add_transaction(transaction)
-        if DEBUG_SYMBOLS is not None and transaction.symbol in DEBUG_SYMBOLS:
-            print(transaction)
-            print(processor.positions.get(transaction.symbol))
-
-    # Display final positions
-    ui.display_positions(list(processor.positions.values()))
+        # Display final positions
+        ui.display_positions(list(processor.positions.values()))
 
 
 if __name__ == "__main__":

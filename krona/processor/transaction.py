@@ -78,3 +78,8 @@ class TransactionProcessor:
         position = apply_transaction(position, transaction)
         self.positions[symbol] = position
         self.history[symbol] = [*self.history.get(symbol, []), transaction]
+
+    def clear_positions(self) -> None:
+        """Clear all positions."""
+        self.positions.clear()
+        self.history.clear()

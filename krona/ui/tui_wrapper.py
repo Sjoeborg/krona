@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from krona.models.mapping import MappingPlan
 from krona.models.suggestion import Suggestion, SuggestionStatus
+from krona.models.transaction import Transaction
 from krona.processor.strategies.conflict_detection import ConflictDetectionStrategy
 from krona.ui.tui import KronaTUI
 from krona.utils.io import (
@@ -13,6 +15,7 @@ from krona.utils.io import (
     load_mapping_config,
     save_mapping_config,
 )
+from krona.utils.logger import logger
 
 if TYPE_CHECKING:
     from krona.models.position import Position
@@ -24,19 +27,20 @@ class TUIWrapper:
 
     def __init__(
         self,
-        plan: MappingPlan | None = None,
+        plan: MappingPlan,
+        processor: TransactionProcessor,
+        transactions: list[Transaction],
         suggestions: list[Suggestion] | None = None,
-        processor: TransactionProcessor | None = None,
     ) -> None:
         self.plan = plan
         self.suggestions = suggestions or []
         self.processor = processor
+        self.transactions = transactions
         self.tui_app: KronaTUI | None = None
 
     @classmethod
     def prompt_load_existing_config(cls, config_file: str = DEFAULT_MAPPING_CONFIG_FILE) -> MappingPlan | None:
         """Load existing mapping configuration if it exists."""
-        from pathlib import Path
 
         config_path = Path(config_file)
 
@@ -111,8 +115,14 @@ class TUIWrapper:
                 # Accept the plan in the processor
                 self.processor.mapper.accept_plan(self.plan)
 
+                self.processor.clear_positions()
+                for transaction in self.transactions:
+                    self.processor.add_transaction(transaction)
+
                 # Get positions to display
                 positions = list(self.processor.positions.values())
+                logger.info(f"Plan: {self.plan}")
+                logger.info(f"Positions: {positions}")
                 if self.tui_app:
                     self.tui_app.update_positions(positions)
                     self.tui_app.switch_tab("positions")
