@@ -1,0 +1,11 @@
+# CSS files
+*.css
+
+# HTML files
+*.html
+
+# Markdown files
+*.md
+
+# Documentation
+docs/

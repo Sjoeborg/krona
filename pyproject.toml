@@ -10,7 +10,10 @@ dependencies = [
     "httpx>=0.28.1",
     "polars>=1.19.0",
     "thefuzz==0.22.1",
-    "rich==13.7.1",
+    "rich==14.1.0",
+    "textual[syntax]>=5.1.0",
+    "textual-plotext>=0.2.0",
+    "plotext>=5.2.8",
     "typing-extensions>=4.12.2",
 ]
 
@@ -56,6 +59,11 @@ log_cli_level = "DEBUG"
 target-version = "py313"
 line-length = 120
 fix = true
+exclude = [
+    "*.css",
+    "*.html",
+    "*.md",
+]
 
 [tool.ruff.lint]
 select = [

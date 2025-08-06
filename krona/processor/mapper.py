@@ -287,10 +287,10 @@ class Mapper:
         return merged_groups
 
     def _load_existing_mappings(self) -> None:
-        """Load existing mappings from the mappings.yml file with user prompt."""
-        from krona.ui.cli import CLI
+        """Load existing mappings from the mappings.yml file without user prompt."""
+        from krona.utils.io import DEFAULT_MAPPING_CONFIG_FILE, load_mapping_config
 
-        existing_plan = CLI.prompt_load_existing_config()
+        existing_plan = load_mapping_config(DEFAULT_MAPPING_CONFIG_FILE)
         if not existing_plan:
             return
 

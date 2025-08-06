@@ -1,0 +1,183 @@
+.view-title {
+    text-style: bold;
+    text-align: center;
+    height: 3;
+    content-align: center middle;
+    background: $primary-darken-2;
+    color: $text;
+    margin-bottom: 1;
+}
+
+/* Dashboard Stats */
+.dashboard-stats {
+    height: 8;
+    margin: 1;
+    border: solid $primary;
+}
+
+.stats-title {
+    text-style: bold;
+    text-align: center;
+    background: $primary-darken-1;
+    color: $text;
+    height: 1;
+}
+
+.stats-row {
+    height: 6;
+    padding: 1;
+}
+
+.stat-card {
+    border: solid $primary-lighten-2;
+    margin: 0 1;
+    padding: 1;
+    text-align: center;
+}
+
+.stat-label {
+    text-style: dim;
+    height: 1;
+}
+
+.stat-value {
+    text-style: bold;
+    color: $accent;
+    height: 2;
+    content-align: center middle;
+}
+
+/* Controls */
+.controls,
+.filter-controls {
+    height: 5;
+    margin: 1;
+}
+
+.progress-container {
+    height: 3;
+    margin: 1;
+    padding: 1;
+}
+
+.progress-label {
+    width: 20;
+    content-align: left middle;
+}
+
+/* Tables */
+.suggestions-table,
+.positions-table,
+.transactions-table {
+    margin: 1;
+}
+
+DataTable>.datatable--header {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+}
+
+DataTable>.datatable--cursor {
+    background: $primary-lighten-2;
+}
+
+DataTable>.datatable--hover {
+    background: $primary-lighten-3;
+}
+
+/* Charts */
+.charts-view {
+    margin: 1;
+}
+
+.chart-title {
+    text-style: bold;
+    text-align: center;
+    background: $primary-darken-1;
+    color: $text;
+    height: 2;
+    content-align: center middle;
+    margin-bottom: 1;
+}
+
+.chart-controls {
+    height: 4;
+    margin: 1;
+    padding: 1;
+    border: solid $primary-lighten-2;
+}
+
+.switch-label {
+    margin: 0 1;
+    content-align: left middle;
+}
+
+.chart-display {
+    border: solid $primary-lighten-1;
+    margin: 1;
+    padding: 1;
+    min-height: 25;
+}
+
+/* Layout */
+TabbedContent {
+    dock: right;
+    width: 1fr;
+    height: 100%;
+    width: 100%;
+    margin-left: 0;
+}
+
+Button {
+    margin: 0 1;
+}
+
+/* Settings */
+.settings-placeholder {
+    text-align: center;
+    color: $text-muted;
+    margin: 4;
+    text-style: italic;
+}
+
+.settings-view {
+    margin: 1;
+}
+
+.settings-section {
+    margin: 2 0;
+    border: solid $primary-lighten-2;
+    padding: 1;
+}
+
+.settings-subtitle {
+    text-style: bold;
+    color: $accent;
+    height: 2;
+    content-align: left middle;
+    margin-bottom: 1;
+}
+
+.setting-row {
+    height: 3;
+    margin: 1 0;
+    content-align: left middle;
+}
+
+.setting-label {
+    width: 30;
+    content-align: left middle;
+}
+
+.setting-value {
+    width: 15;
+    content-align: left middle;
+    color: $accent;
+}
+
+.settings-actions {
+    height: 4;
+    margin: 2 0;
+    content-align: center middle;
+}

@@ -1,9 +1,11 @@
+import argparse
 from pathlib import Path
 
 from krona.parsers.avanza import AvanzaParser
 from krona.parsers.nordnet import NordnetParser
 from krona.processor.transaction import TransactionProcessor
 from krona.ui.cli import CLI
+from krona.ui.tui_wrapper import TUIWrapper
 from krona.utils.io import identify_broker_files, read_transactions_from_files
 
 DEBUG_SYMBOLS = {
@@ -13,7 +15,31 @@ DEBUG_SYMBOLS = {
 }
 
 
-def main(path: Path):
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="KRONA - Rapidly Organizes Nordic Assets",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "path",
+        type=Path,
+        default=Path("files"),
+        nargs="?",
+        help="Path to directory containing transaction files (default: files)",
+    )
+
+    parser.add_argument(
+        "--ui",
+        choices=["cli", "tui"],
+        default="tui",
+        help="User interface mode: cli (Rich CLI), tui (Textual TUI) (default: tui)",
+    )
+    return parser.parse_args()
+
+
+def main(path: Path, ui_mode: str = "tui"):
     """Main function to process transaction files."""
     processor = TransactionProcessor()
     nordnet_parser = NordnetParser()
@@ -26,13 +52,23 @@ def main(path: Path):
 
     # Phase 1: Create mapping plan
     print("\nCreating mapping plan...")
-    plan = processor.mapper.create_mapping_plan(transactions)
 
-    # Run the CLI
-    cli = CLI(plan)
-    plan = cli.run()
+    # Handle existing mapping configuration based on UI mode
+    if ui_mode == "cli":
+        existing_plan = CLI.prompt_load_existing_config()
+        plan = existing_plan if existing_plan else processor.mapper.create_mapping_plan(transactions)
+        ui = CLI(plan)
+    elif ui_mode == "tui":
+        # For TUI, load existing config silently and let TUI handle the display
+        plan = processor.mapper.create_mapping_plan(transactions)
+        ui = TUIWrapper(plan, processor=processor)
+    else:
+        raise ValueError(f"Unknown UI mode: {ui_mode}")
 
-    # Accept the plan
+    # Run the UI and get the updated plan
+    plan = ui.run()
+
+    # Accept the plan and process transactions
     processor.mapper.accept_plan(plan)
 
     for transaction in transactions:
@@ -42,8 +78,9 @@ def main(path: Path):
             print(processor.positions.get(transaction.symbol))
 
     # Display final positions
-    cli.display_positions(list(processor.positions.values()))
+    ui.display_positions(list(processor.positions.values()))
 
 
 if __name__ == "__main__":
-    main(path=Path("files"))
+    args = parse_arguments()
+    main(path=args.path, ui_mode=args.ui)
