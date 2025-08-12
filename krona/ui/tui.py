@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from krona.models.suggestion import Suggestion
 
 from krona.models.suggestion import SuggestionStatus
+from krona.ui.charts import PortfolioChart
+from krona.ui.views.transaction_history import TransactionModal
 from krona.utils.logger import logger
 
 
@@ -79,7 +81,7 @@ class KronaTUI(App):
                     )
 
                 # Always show the suggestions table to display existing mappings
-                table = DataTable(classes="suggestions-table", cursor_type="row")
+                table = DataTable(id="suggestions-table", classes="suggestions-table", cursor_type="row")
                 table.add_columns(
                     "ID", "Status", "Source", "Target", "Source ISIN", "Target ISIN", "Confidence", "Rationale"
                 )
@@ -93,62 +95,34 @@ class KronaTUI(App):
                 # Dashboard stats
                 with Vertical(classes="dashboard-stats"):
                     yield Static("Portfolio Overview", classes="stats-title")
-
-                    with Horizontal(classes="stats-row"):
-                        with Vertical(classes="stat-card"):
-                            yield Static("Total Positions", classes="stat-label")
-                            yield Static(str(len([p for p in self.positions if not p.is_closed])), classes="stat-value")
-
-                        with Vertical(classes="stat-card"):
-                            yield Static("Total Value", classes="stat-label")
-                            total_value = sum(p.cost_basis for p in self.positions if not p.is_closed)
-                            yield Static(f"{total_value:.2f}", classes="stat-value")
-
-                        with Vertical(classes="stat-card"):
-                            yield Static("Total Dividends", classes="stat-label")
-                            total_dividends = sum(p.dividends for p in self.positions)
-                            yield Static(f"{total_dividends:.2f}", classes="stat-value")
-
-                        with Vertical(classes="stat-card"):
-                            yield Static("Closed Positions", classes="stat-label")
-                            closed_count = len([p for p in self.positions if p.is_closed])
-                            yield Static(str(closed_count), classes="stat-value")
+                    # Single key chart in the overview
+                    yield PortfolioChart(self.positions)
 
                 # Filter controls
                 with Horizontal(classes="filter-controls"):
                     yield Button("🔄 Refresh", id="refresh-positions", variant="primary")
-                    yield Button("📈 Show Open Only", id="filter-open", variant="default")
-                    yield Button("📉 Show Closed Only", id="filter-closed", variant="default")
                     yield Button("📋 Show All", id="show-all", variant="default")
 
                 # Positions table
-                table = DataTable(classes="positions-table")
+                table = DataTable(id="positions-table", classes="positions-table", cursor_type="row")
                 table.add_columns(
                     "Symbol", "ISIN", "Quantity", "Avg Price", "Cost Basis", "Dividends", "Fees", "Status", "P&L"
                 )
-                self._populate_positions_table(table)
+                self._populate_positions_table(table, [p for p in self.positions if not p.is_closed])
+                yield table
+
+            with TabPane("History", id="history"):
+                yield Static("📜 Closed Positions", classes="view-title")
+
+                table = DataTable(id="history-table", classes="positions-table", cursor_type="row")
+                table.add_columns(
+                    "Symbol", "ISIN", "Quantity", "Avg Price", "Cost Basis", "Dividends", "Fees", "Status", "P&L"
+                )
+                self._populate_positions_table(table, [p for p in self.positions if p.is_closed])
                 yield table
 
             with TabPane("Analytics", id="charts"):
                 yield Static("📈 Portfolio Analytics", classes="view-title")
-                yield Static("Analytics charts coming soon...", classes="settings-placeholder")
-
-                # Add some mock analytics content to fill the space
-                with Vertical(classes="analytics-content"):
-                    yield Static("📊 Portfolio Performance")
-                    yield Static("Total Return: +15.3%")
-                    yield Static("Annualized Return: +8.2%")
-                    yield Static("Sharpe Ratio: 1.45")
-                    yield Static("")
-                    yield Static("📈 Asset Allocation")
-                    yield Static("Stocks: 65%")
-                    yield Static("Bonds: 25%")
-                    yield Static("Cash: 10%")
-                    yield Static("")
-                    yield Static("🎯 Top Holdings")
-                    yield Static("1. Bahnhof B: 25.3%")
-                    yield Static("2. Investor A: 18.7%")
-                    yield Static("3. Evolution: 12.1%")
 
             with TabPane("Settings", id="settings"):
                 # Simple settings view without custom CSS classes
@@ -186,7 +160,7 @@ class KronaTUI(App):
         table.clear()
         self._populate_suggestions_table(table)
 
-    @on(DataTable.RowSelected)
+    @on(DataTable.RowSelected, "#suggestions-table")
     def toggle_suggestion(self, event: DataTable.RowSelected) -> None:
         """Toggle suggestion status when row is selected."""
         if event.row_key is not None and event.row_key.value is not None:
@@ -277,13 +251,12 @@ class KronaTUI(App):
         tabbed_content.active = tab_id
 
     # Positions
-    def _populate_positions_table(self, table: DataTable) -> None:
-        """Populate the positions table."""
-        logger.info(f"Populating positions table with {len(self.positions)} positions")
-        for i, position in enumerate(self.positions):
+    def _populate_positions_table(self, table: DataTable, positions: list[Position]) -> None:
+        """Populate a positions table with the provided positions list."""
+        logger.info(f"Populating positions table with {len(positions)} positions")
+        for i, position in enumerate(positions):
             status = "🔴 CLOSED" if position.is_closed else "🟢 OPEN"
-            realized_profit = f"{position.realized_profit:.2f}" if position.realized_profit is not None else "N/A"
-            print(realized_profit)
+            # Determine P&L display
             # Color code P&L
             if position.realized_profit is not None:
                 if position.realized_profit > 0:
@@ -308,14 +281,40 @@ class KronaTUI(App):
                 key=str(i),
             )
 
-    @on(DataTable.RowSelected)
+    @on(DataTable.RowSelected, "#positions-table")
     def show_transactions(self, event: DataTable.RowSelected) -> None:
         """Show transaction history for selected position."""
         if event.row_key is not None and event.row_key.value is not None:
             idx = int(event.row_key.value)
-            if 0 <= idx < len(self.positions):
-                position = self.positions[idx]
+            open_positions = [p for p in self.positions if not p.is_closed]
+            if 0 <= idx < len(open_positions):
+                position = open_positions[idx]
                 self.show_transaction_history(position)
+
+    @on(DataTable.RowSelected, "#history-table")
+    def show_transactions_from_history(self, event: DataTable.RowSelected) -> None:
+        """Show transaction history for selected closed position."""
+        if event.row_key is not None and event.row_key.value is not None:
+            idx = int(event.row_key.value)
+            closed_positions = [p for p in self.positions if p.is_closed]
+            if 0 <= idx < len(closed_positions):
+                position = closed_positions[idx]
+                self.show_transaction_history(position)
+
+    @on(DataTable.CellSelected, "#positions-table")
+    def show_transactions_on_cell(self, event) -> None:  # type: ignore[no-untyped-def]
+        """Also open the modal when a cell is clicked/selected (mouse)."""
+        try:
+            table = self.query_one("#positions-table", DataTable)
+            row_key = table.cursor_row
+            if row_key is None:
+                return
+            idx = int(getattr(row_key, "value", str(row_key)))
+            if 0 <= idx < len(self.positions):
+                self.show_transaction_history(self.positions[idx])
+        except Exception:
+            # If anything goes wrong, don't crash the UI
+            logger.exception("Failed to open transaction modal from cell selection")
 
     def update_positions(self, positions: list[Position]) -> None:
         """Update the positions in the positions view."""
@@ -327,44 +326,48 @@ class KronaTUI(App):
         positions_table = positions_tab.query_one(DataTable)
 
         positions_table.clear()
-        self._populate_positions_table(positions_table)
+        self._populate_positions_table(positions_table, [p for p in positions if not p.is_closed])
+
+        # Update history view
+        history_tab = self.query_one("#history", TabPane)
+        history_table = history_tab.query_one(DataTable)
+        history_table.clear()
+        self._populate_positions_table(history_table, [p for p in positions if p.is_closed])
 
         # Update dashboard stats
         # dashboard_stats = positions_tab.query_one(DashboardStats)
         # dashboard_stats.update_stats(positions)
 
-        # # Update charts view
-        # charts_view = self.query_one(ChartsView)
-        # charts_view.update_positions(positions)
+        # Update charts view
+        try:
+            # Update single overview chart(s)
+            for overview_chart in self.query(PortfolioChart):
+                overview_chart.positions = positions
+                # Refresh display if mounted
+                if hasattr(overview_chart, "_refresh_chart"):
+                    overview_chart._refresh_chart()
+        except Exception:
+            logger.debug("Charts not mounted; skipping update")
 
     def show_transaction_history(self, position: Position) -> None:
-        """Show transaction history for a position."""
-        tabbed_content = self.query_one(TabbedContent)
-
-        # Remove existing transaction history tab if it exists
-        existing_pane = tabbed_content.get_pane("transaction-history")
-        if existing_pane:
-            tabbed_content.remove_pane("transaction-history")
-
-        # Add new transaction history tab
-        # transaction_view = TransactionHistoryView(position)
-        # tab_pane = TabPane(f"Transactions: {position.symbol}", transaction_view, id="transaction-history")
-        # tabbed_content.add_pane(tab_pane)
-        # tabbed_content.active = "transaction-history"
+        """Open a modal overlay with transaction drill-down for a position."""
+        self.push_screen(TransactionModal(position))
 
     # Dashboard
     def update_stats(self, positions: list[Position]) -> None:
         """Update dashboard statistics."""
+        from textual.widgets import Static
+
         self.positions = positions
-        stats = self.query(".stat-value")
-        if len(stats) >= 4:
-            stats[0].update(str(len([p for p in positions if not p.is_closed])))
+        stat_widgets: list[Static] = [w for w in self.query(".stat-value") if isinstance(w, Static)]
+        if len(stat_widgets) >= 4:
+            stat_widgets[0].update(str(len([p for p in positions if not p.is_closed])))
             total_value = sum(p.cost_basis for p in positions if not p.is_closed)
-            stats[1].update(f"{total_value:.2f}")
+            stat_widgets[1].update(f"{total_value:.2f}")
             total_dividends = sum(p.dividends for p in positions)
-            stats[2].update(f"{total_dividends:.2f}")
+            stat_widgets[2].update(f"{total_dividends:.2f}")
             closed_count = len([p for p in positions if p.is_closed])
-            stats[3].update(str(closed_count))
+            stat_widgets[3].update(str(closed_count))
 
     # Transactions
     @on(Button.Pressed, "#back-to-positions")
@@ -375,5 +378,5 @@ class KronaTUI(App):
     def switch_to_positions(self) -> None:
         """Switch to positions view."""
         tui_app = self.app
-        if hasattr(tui_app, "switch_tab"):
+        if isinstance(tui_app, KronaTUI):
             tui_app.switch_tab("positions")
