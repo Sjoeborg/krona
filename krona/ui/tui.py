@@ -105,9 +105,7 @@ class KronaTUI(App):
 
                 # Positions table
                 table = DataTable(id="positions-table", classes="positions-table", cursor_type="row")
-                table.add_columns(
-                    "Symbol", "ISIN", "Quantity", "Avg Price", "Cost Basis", "Dividends", "Fees", "Status", "P&L"
-                )
+                table.add_columns("Symbol", "ISIN", "Quantity", "Avg Price", "Cost Basis", "Dividends", "Fees")
                 self._populate_positions_table(table, [p for p in self.positions if not p.is_closed])
                 yield table
 
@@ -115,10 +113,8 @@ class KronaTUI(App):
                 yield Static("📜 Closed Positions", classes="view-title")
 
                 table = DataTable(id="history-table", classes="positions-table", cursor_type="row")
-                table.add_columns(
-                    "Symbol", "ISIN", "Quantity", "Avg Price", "Cost Basis", "Dividends", "Fees", "Status", "P&L"
-                )
-                self._populate_positions_table(table, [p for p in self.positions if p.is_closed])
+                table.add_columns("Symbol", "ISIN", "Avg Price", "Dividends", "Fees", "P&L")
+                self._populate_history_table(table, [p for p in self.positions if p.is_closed])
                 yield table
 
             with TabPane("Analytics", id="charts"):
@@ -255,19 +251,6 @@ class KronaTUI(App):
         """Populate a positions table with the provided positions list."""
         logger.info(f"Populating positions table with {len(positions)} positions")
         for i, position in enumerate(positions):
-            status = "🔴 CLOSED" if position.is_closed else "🟢 OPEN"
-            # Determine P&L display
-            # Color code P&L
-            if position.realized_profit is not None:
-                if position.realized_profit > 0:
-                    pl_display = f"💚 +{position.realized_profit:.2f}"
-                elif position.realized_profit < 0:
-                    pl_display = f"❤️ {position.realized_profit:.2f}"
-                else:
-                    pl_display = f"⚪ {position.realized_profit:.2f}"
-            else:
-                pl_display = "⚪ N/A"
-
             table.add_row(
                 f"📊 {position.symbol}",
                 position.ISIN,
@@ -276,7 +259,29 @@ class KronaTUI(App):
                 f"{position.cost_basis:.2f} {position.currency}",
                 f"{position.dividends:.2f} {position.currency}",
                 f"{position.fees:.2f} {position.currency}",
-                status,
+                key=str(i),
+            )
+
+    def _populate_history_table(self, table: DataTable, positions: list[Position]) -> None:
+        """Populate a historical positions table with the provided positions list."""
+        logger.info(f"Populating positions table with {len(positions)} positions")
+        for i, position in enumerate(positions):
+            # Determine P&L display
+            # Color code P&L
+            if position.realized_profit is not None:
+                if position.realized_profit > 0:
+                    pl_display = f"+{int(position.realized_profit)}"
+                else:
+                    pl_display = f"{int(position.realized_profit)}"
+            else:
+                pl_display = "N/A"
+
+            table.add_row(
+                f"📊 {position.symbol}",
+                position.ISIN,
+                f"{position.price:.2f} {position.currency}",
+                f"{position.dividends:.2f} {position.currency}",
+                f"{position.fees:.2f} {position.currency}",
                 pl_display,
                 key=str(i),
             )
