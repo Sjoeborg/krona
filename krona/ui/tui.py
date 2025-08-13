@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from textual import on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.widgets import Button, DataTable, Footer, Header, ProgressBar, Static, TabbedContent, TabPane
 
 if TYPE_CHECKING:
@@ -92,17 +92,6 @@ class KronaTUI(App):
             with TabPane("Portfolio", id="positions"):
                 yield Static("💼 Portfolio Positions", classes="view-title")
 
-                # Dashboard stats
-                with Vertical(classes="dashboard-stats"):
-                    yield Static("Portfolio Overview", classes="stats-title")
-                    # Single key chart in the overview
-                    yield PortfolioChart(self.positions)
-
-                # Filter controls
-                with Horizontal(classes="filter-controls"):
-                    yield Button("🔄 Refresh", id="refresh-positions", variant="primary")
-                    yield Button("📋 Show All", id="show-all", variant="default")
-
                 # Positions table
                 table = DataTable(id="positions-table", classes="positions-table", cursor_type="row")
                 table.add_columns("Symbol", "ISIN", "Quantity", "Avg Price", "Cost Basis", "Dividends", "Fees")
@@ -112,13 +101,18 @@ class KronaTUI(App):
             with TabPane("History", id="history"):
                 yield Static("📜 Closed Positions", classes="view-title")
 
-                table = DataTable(id="history-table", classes="positions-table", cursor_type="row")
+                table = DataTable(id="history-table", classes="history-table", cursor_type="row")
                 table.add_columns("Symbol", "ISIN", "Avg Price", "Dividends", "Fees", "P&L")
                 self._populate_history_table(table, [p for p in self.positions if p.is_closed])
                 yield table
 
             with TabPane("Analytics", id="charts"):
                 yield Static("📈 Portfolio Analytics", classes="view-title")
+                with Horizontal(classes="filter-controls"):
+                    pass
+                # Portfolio-wide timeline chart
+                timeline_chart = PortfolioChart(self.positions)
+                yield timeline_chart
 
             with TabPane("Settings", id="settings"):
                 # Simple settings view without custom CSS classes
@@ -337,7 +331,7 @@ class KronaTUI(App):
         history_tab = self.query_one("#history", TabPane)
         history_table = history_tab.query_one(DataTable)
         history_table.clear()
-        self._populate_positions_table(history_table, [p for p in positions if p.is_closed])
+        self._populate_history_table(history_table, [p for p in positions if p.is_closed])
 
         # Update dashboard stats
         # dashboard_stats = positions_tab.query_one(DashboardStats)
@@ -345,12 +339,11 @@ class KronaTUI(App):
 
         # Update charts view
         try:
-            # Update single overview chart(s)
-            for overview_chart in self.query(PortfolioChart):
-                overview_chart.positions = positions
-                # Refresh display if mounted
-                if hasattr(overview_chart, "_refresh_chart"):
-                    overview_chart._refresh_chart()
+            # Update any portfolio timeline charts in Analytics
+
+            for timeline in self.query(PortfolioChart):
+                timeline.positions = positions
+                timeline.refresh_chart()
         except Exception:
             logger.debug("Charts not mounted; skipping update")
 
