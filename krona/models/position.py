@@ -39,10 +39,7 @@ class Position:
 
     def __str__(self) -> str:
         # Handle very small quantities to avoid scientific notation
-        if abs(self.quantity) < 1e-10:
-            quantity_str = "0.0"
-        else:
-            quantity_str = f"{self.quantity:.1f}" if self.quantity % 1 != 0 else f"{int(self.quantity)}"
+        quantity_str = f"{self.quantity:.1f}" if self.quantity % 1 != 0 else f"{int(self.quantity)}"
 
         if self.is_closed:
             return f"--CLOSED--{self.symbol} ({self.ISIN}): {self.cost_basis:.2f} {self.currency} ({quantity_str} @ {self.price:.2f}) Dividends: {self.dividends:.2f}. Fees: {self.fees:.2f}. Realized profit: {self.realized_profit:.2f}"

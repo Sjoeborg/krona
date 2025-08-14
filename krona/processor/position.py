@@ -5,6 +5,11 @@ from krona.models.position import Position
 from krona.models.transaction import Transaction, TransactionType
 from krona.utils.logger import logger
 
+# Smallest meaningful quantity. Quantities with absolute value below this
+# threshold are treated as zero to avoid floating point residue keeping
+# positions erroneously open.
+QUANTITY_EPSILON = 1e-5
+
 
 def apply_transaction(position: Position, transaction: Transaction) -> Position:
     """Apply a transaction to the position."""
@@ -33,6 +38,10 @@ def apply_transaction(position: Position, transaction: Transaction) -> Position:
 def _handle_buy(position: Position, transaction: Transaction) -> Position:
     new_quantity = position.quantity + transaction.quantity
 
+    # Clamp tiny float residue to zero to avoid keeping positions open due to rounding errors
+    if abs(new_quantity) < QUANTITY_EPSILON:
+        new_quantity = 0
+
     if new_quantity < 0:
         logger.warning(
             f"New quantity would be negative for buy transaction:\n  {transaction}\nto position:\n  {position}\n"
@@ -58,6 +67,10 @@ def _handle_buy(position: Position, transaction: Transaction) -> Position:
 
 def _handle_sell(position: Position, transaction: Transaction) -> Position:
     new_quantity = position.quantity - transaction.quantity
+
+    # Clamp tiny float residue to zero to avoid keeping positions open due to rounding errors
+    if abs(new_quantity) < QUANTITY_EPSILON:
+        new_quantity = 0
 
     if new_quantity < 0:
         logger.warning(
@@ -110,7 +123,7 @@ def _handle_split(position: Position, transaction: Transaction) -> Position:
     new_quantity = position.quantity * split.ratio
     new_price = position.price / split.ratio
 
-    new_quantity = 0 if abs(new_quantity) < 1e-10 else round(new_quantity)
+    new_quantity = 0 if abs(new_quantity) < QUANTITY_EPSILON else round(new_quantity)
 
     logger.info(
         f"Split {position.symbol} from {position.quantity} @ {position.price:.2f} to {new_quantity} @ {new_price:.2f} (split ratio: {split.ratio})"
