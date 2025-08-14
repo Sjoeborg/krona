@@ -8,11 +8,7 @@ from krona.ui.cli import CLI
 from krona.ui.tui_wrapper import TUIWrapper
 from krona.utils.io import identify_broker_files, read_transactions_from_files
 
-DEBUG_SYMBOLS = {
-    "SWEDISH MATCH",
-    "SWEDISH MATCH AB",
-    "SWMA",
-}
+DEBUG_SYMBOLS = {}
 
 
 def parse_arguments() -> argparse.Namespace:
