@@ -1,3 +1,51 @@
+/* Modal styles for transaction drill-down */
+.tx-modal-outer {
+  width: 100%;
+  height: 100%;
+  align-horizontal: center;
+  align-vertical: middle;
+}
+
+.tx-modal {
+  padding: 1 2;
+  height: auto;
+  width: 90%;
+  max-height: 90%;
+}
+
+.tx-modal-header {
+  height: 3;
+  dock: top;
+  align-horizontal: right;
+}
+
+.tx-title {
+  width: 1fr;
+}
+
+.tx-modal-content {
+  height: 1fr;
+}
+
+.tx-side-panel {
+  width: 48;
+  min-width: 40;
+}
+
+#tx-table {
+  width: 1fr;
+}
+
+/* Ensure the stats and chart share space nicely */
+#tx-stats {
+  height: 6;
+  min-height: 6;
+}
+
+#tx-chart {
+  height: 12;
+  overflow: hidden;
+}
 .view-title {
     text-style: bold;
     text-align: center;
@@ -9,19 +57,7 @@
 }
 
 /* Dashboard Stats */
-.dashboard-stats {
-    height: 8;
-    margin: 1;
-    border: solid $primary;
-}
 
-.stats-title {
-    text-style: bold;
-    text-align: center;
-    background: $primary-darken-1;
-    color: $text;
-    height: 1;
-}
 
 .stats-row {
     height: 6;
@@ -50,8 +86,9 @@
 /* Controls */
 .controls,
 .filter-controls {
-    height: 5;
+    min-height: 3;
     margin: 1;
+    grid-gutter: 1;
 }
 
 .progress-container {
@@ -68,6 +105,7 @@
 /* Tables */
 .suggestions-table,
 .positions-table,
+.history-table,
 .transactions-table {
     margin: 1;
 }
@@ -117,7 +155,14 @@ DataTable>.datatable--hover {
     border: solid $primary-lighten-1;
     margin: 1;
     padding: 1;
-    min-height: 25;
+  min-height: 20;
+}
+
+#timeline-chart {
+    height: 16;
+    min-height: 12;
+    max-height: 20;
+    overflow: hidden;
 }
 
 /* Layout */

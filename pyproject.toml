@@ -1,20 +1,17 @@
 [project]
 name = "krona"
-version = "0.1.0"
+version = "0.2.0"
 description = "KRONA Rapidly Organizes Nordic Assets - Transaction tool for Nordic brokers"
 authors = [{ name = "Martin Sjöborg", email = "martin@sjoborg.org" }]
 readme = "README.md"
 keywords = ['python']
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
-    "httpx>=0.28.1",
     "polars>=1.19.0",
     "thefuzz==0.22.1",
     "rich==14.1.0",
     "textual[syntax]>=5.1.0",
     "textual-plotext>=0.2.0",
-    "plotext>=5.2.8",
-    "typing-extensions>=4.12.2",
 ]
 
 [project.urls]
@@ -26,7 +23,7 @@ Documentation = "https://Sjoeborg.github.io/krona/"
 dev = [
     "pytest>=7.2.0",
     "pre-commit>=2.20.0",
-    "mypy>=1.14.0",
+    "ty>=0.0.1a18",
     "ruff>=0.12",
 ]
 
