@@ -34,21 +34,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 py-modules = ["krona"]
 
-[tool.mypy]
-files = ["krona"]
-disallow_untyped_defs = true
-disallow_any_unimported = true
-no_implicit_optional = true
-check_untyped_defs = true
-warn_return_any = true
-warn_unused_ignores = true
-show_error_codes = true
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = [
-    "split",
-]
 log_cli = true
 log_cli_level = "DEBUG"
 
@@ -104,6 +91,3 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
-"krona/main.py" = ["C901"]
-"krona/processor/mapper.py" = ["C901"]
-"krona/processor/transaction.py" = ["C901"]

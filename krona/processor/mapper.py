@@ -208,7 +208,7 @@ class Mapper:
         # Consolidate related groups to avoid circular dependencies and merge synonyms
         self._symbol_groups = self._consolidate_symbol_groups(canonical_groups)
 
-    def _consolidate_symbol_groups(self, groups: dict[str, SymbolGroup]) -> dict[str, SymbolGroup]:
+    def _consolidate_symbol_groups(self, groups: dict[str, SymbolGroup]) -> dict[str, SymbolGroup]:  # noqa: C901
         """Consolidate related symbol groups to avoid circular dependencies and merge synonyms."""
         if not groups:
             return groups

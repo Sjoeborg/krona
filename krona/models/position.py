@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import override
 
 from krona.models.transaction import Transaction, TransactionType
 
@@ -38,7 +37,6 @@ class Position:
         else:
             return None
 
-    @override
     def __str__(self) -> str:
         # Handle very small quantities to avoid scientific notation
         if abs(self.quantity) < 1e-10:
