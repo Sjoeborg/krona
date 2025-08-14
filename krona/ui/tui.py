@@ -301,7 +301,7 @@ class KronaTUI(App):
                 self.show_transaction_history(position)
 
     @on(DataTable.CellSelected, "#positions-table")
-    def show_transactions_on_cell(self, event) -> None:  # type: ignore[no-untyped-def]
+    def show_transactions_on_cell(self, _event) -> None:
         """Also open the modal when a cell is clicked/selected (mouse)."""
         try:
             table = self.query_one("#positions-table", DataTable)
