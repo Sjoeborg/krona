@@ -5,7 +5,9 @@ from rich.table import Table
 from krona.models.mapping import MappingPlan
 from krona.models.position import Position
 from krona.models.suggestion import Suggestion, SuggestionStatus
+from krona.models.transaction import Transaction
 from krona.processor.strategies.conflict_detection import ConflictDetectionStrategy
+from krona.processor.transaction import TransactionProcessor
 from krona.utils.io import (
     DEFAULT_MAPPING_CONFIG_FILE,
     load_mapping_config,
@@ -20,10 +22,14 @@ class CLI:
         self,
         plan: MappingPlan | None = None,
         suggestions: list[Suggestion] | None = None,
+        processor: TransactionProcessor | None = None,
+        transactions: list[Transaction] | None = None,
     ) -> None:
         self.plan = plan
         self.suggestions = suggestions or []
         self.console = Console()
+        self.processor = processor
+        self.transactions = transactions or []
 
     def display_positions(self, positions: list[Position]) -> None:
         """Display the final positions in a table."""
@@ -42,11 +48,11 @@ class CLI:
                 position.symbol,
                 position.ISIN,
                 f"{int(position.quantity)}",
-                f"{position.price:.2f} {position.currency}",
-                f"{position.cost_basis:.2f} {position.currency}",
-                f"{position.dividends:.2f} {position.currency}",
-                f"{position.fees:.2f} {position.currency}",
-                f"{position.realized_profit:.2f} {position.currency}" if position.is_closed else "N/A",
+                f"{position.price:.0f} {position.currency}",
+                f"{position.cost_basis:.0f} {position.currency}",
+                f"{position.dividends:.0f} {position.currency}",
+                f"{position.fees:.0f} {position.currency}",
+                f"{position.realized_profit:.0f} {position.currency}" if position.is_closed else "N/A",
             )
         self.console.print(table)
 
@@ -140,6 +146,8 @@ class CLI:
                 self.console.print("[bold green]Mapping configuration saved to mappings.yml[/bold green]")
             else:
                 self.console.print("[bold red]Error saving mapping configuration[/bold red]")
+
+            # Reprocessing is handled by the caller (main flow)
 
     def _display_suggestions(self, suggestions: list[Suggestion]) -> None:
         table = Table(title="Mapping Suggestions", show_header=True, header_style="bold magenta")
@@ -279,3 +287,176 @@ class CLI:
             start = int(id_or_range)
             end = start
         return start, end
+
+    def run_positions_view(self, positions: list[Position]) -> None:
+        """Public entry to interactive positions view."""
+        self._positions_loop(positions)
+
+    def _positions_loop(self, positions: list[Position]) -> None:
+        """Interactive positions view: open a position to see transaction history."""
+        while True:
+            open_positions = [p for p in positions if not p.is_closed]
+            closed_positions = [p for p in positions if p.is_closed]
+
+            self._display_positions_interactive(open_positions)
+            command = Prompt.ask("Enter command (o <id>=open, h=history, q=quit)")
+            parts = command.strip().lower().split()
+            if not parts:
+                continue
+            match parts:
+                case ["q"]:
+                    break
+                case ["h"] | ["history"]:
+                    self._history_loop(closed_positions)
+                case ["o", id_str]:
+                    try:
+                        idx = int(id_str)
+                        if 0 <= idx < len(open_positions):
+                            self._show_transaction_history(open_positions[idx])
+                        else:
+                            self.console.print("[bold red]Invalid ID[/bold red]")
+                    except ValueError:
+                        self.console.print("[bold red]Invalid ID[/bold red]")
+                case _:
+                    self.console.print("[bold red]Invalid command[/bold red]")
+
+    def _display_positions_interactive(self, positions: list[Position]) -> None:
+        table = Table(title="Open Positions", show_header=True, header_style="bold magenta")
+        table.add_column("ID", style="dim")
+        table.add_column("Status", style="bold")
+        table.add_column("Symbol", style="cyan")
+        table.add_column("ISIN", style="blue")
+        table.add_column("Quantity", style="yellow")
+        table.add_column("Average Price", style="yellow")
+        table.add_column("Cost Basis", style="green")
+        table.add_column("Dividends", style="green")
+        table.add_column("Fees", style="red")
+        table.add_column("Realized Profit", style="green")
+
+        for i, position in enumerate(positions):
+            status = "CLOSED" if position.is_closed else "OPEN"
+            realized = (
+                f"{position.realized_profit:.0f} {position.currency}"
+                if position.is_closed and position.realized_profit is not None
+                else "N/A"
+            )
+            table.add_row(
+                str(i),
+                status,
+                position.symbol,
+                position.ISIN,
+                f"{int(position.quantity)}",
+                f"{position.price:.0f} {position.currency}",
+                f"{position.cost_basis:.0f} {position.currency}",
+                f"{position.dividends:.0f} {position.currency}",
+                f"{position.fees:.0f} {position.currency}",
+                realized,
+            )
+        self.console.print(table)
+        self.console.print("\n[bold]Commands:[/] (o)pen <id>, (h)istory, (q)uit")
+
+    def _history_loop(self, closed_positions: list[Position]) -> None:
+        """Interactive history view for closed positions."""
+        while True:
+            self._display_history_table(closed_positions)
+            command = Prompt.ask("Enter command (o <id>=open, b=back, q=quit)")
+            parts = command.strip().lower().split()
+            if not parts:
+                continue
+            match parts:
+                case ["b"] | ["back"]:
+                    return
+                case ["q"]:
+                    # Exit the entire positions flow
+                    raise SystemExit(0)
+                case ["o", id_str]:
+                    try:
+                        idx = int(id_str)
+                        if 0 <= idx < len(closed_positions):
+                            self._show_transaction_history(closed_positions[idx])
+                        else:
+                            self.console.print("[bold red]Invalid ID[/bold red]")
+                    except ValueError:
+                        self.console.print("[bold red]Invalid ID[/bold red]")
+                case _:
+                    self.console.print("[bold red]Invalid command[/bold red]")
+
+    def _display_history_table(self, positions: list[Position]) -> None:
+        table = Table(title="Closed Positions (History)", show_header=True, header_style="bold magenta")
+        table.add_column("ID", style="dim")
+        table.add_column("Symbol", style="cyan")
+        table.add_column("ISIN", style="blue")
+        table.add_column("Quantity", style="yellow")
+        table.add_column("Average Price", style="yellow")
+        table.add_column("Cost Basis", style="green")
+        table.add_column("Dividends", style="green")
+        table.add_column("Fees", style="red")
+        table.add_column("Realized Profit", style="green")
+
+        for i, position in enumerate(positions):
+            realized = (
+                f"{position.realized_profit:.0f} {position.currency}" if position.realized_profit is not None else "N/A"
+            )
+            table.add_row(
+                str(i),
+                position.symbol,
+                position.ISIN,
+                f"{int(position.quantity)}",
+                f"{position.price:.0f} {position.currency}",
+                f"{position.cost_basis:.0f} {position.currency}",
+                f"{position.dividends:.0f} {position.currency}",
+                f"{position.fees:.0f} {position.currency}",
+                realized,
+            )
+        self.console.print(table)
+        self.console.print("\n[bold]Commands:[/] (o)pen <id>, (b)ack, (q)uit")
+
+    def _show_transaction_history(self, position: Position) -> None:
+        """Show transaction history and quick stats for a position."""
+        # Quick stats
+        total_buys = sum(
+            t.total_amount
+            for t in position.transactions
+            if getattr(t.transaction_type, "value", str(t.transaction_type)) == "BUY"
+        )
+        total_sells = sum(
+            t.total_amount
+            for t in position.transactions
+            if getattr(t.transaction_type, "value", str(t.transaction_type)) == "SELL"
+        )
+        realized = position.realized_profit
+
+        stats = Table(title=f"{position.symbol} · Quick Stats", show_header=False)
+        stats.add_row("ISIN", position.ISIN)
+        stats.add_row("Quantity", f"{int(position.quantity)}")
+        stats.add_row("Cost Basis", f"{position.cost_basis:.0f} {position.currency}")
+        stats.add_row("Dividends", f"{position.dividends:.0f} {position.currency}")
+        stats.add_row("Fees", f"{position.fees:.0f} {position.currency}")
+        stats.add_row("Total Buys", f"{total_buys:.0f} {position.currency}")
+        stats.add_row("Total Sells", f"{total_sells:.0f} {position.currency}")
+        stats.add_row("Realized P&L", f"{realized:.0f} {position.currency}" if realized is not None else "N/A")
+
+        self.console.print(stats)
+
+        # Transactions table
+        tx_table = Table(title="Transactions", show_header=True, header_style="bold")
+        tx_table.add_column("Date")
+        tx_table.add_column("Type")
+        tx_table.add_column("Qty", justify="right")
+        tx_table.add_column("Price", justify="right")
+        tx_table.add_column("Fees", justify="right")
+        tx_table.add_column("Amount", justify="right")
+
+        for t in position.transactions:
+            tx_table.add_row(
+                str(t.date),
+                getattr(t.transaction_type, "value", str(t.transaction_type)),
+                f"{t.quantity:.0f}",
+                f"{t.price:.0f} {t.currency}",
+                f"{t.fees:.0f}",
+                f"{t.total_amount:.0f} {t.currency}",
+            )
+
+        self.console.print(tx_table)
+        # Wait for user before returning
+        _ = Prompt.ask("Press Enter to return", default="")

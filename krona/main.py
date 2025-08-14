@@ -67,18 +67,26 @@ def main(path: Path, ui_mode: str = "tui"):
     # Run the UI and get the updated plan
     plan = ui.run()
 
-    # TODO: make this part of the CLI
     if ui_mode == "cli":
         # Accept the plan and process transactions
         processor.mapper.accept_plan(plan)
+        processor.clear_positions()
         for transaction in transactions:
             processor.add_transaction(transaction)
             if DEBUG_SYMBOLS is not None and transaction.symbol in DEBUG_SYMBOLS:
                 print(transaction)
                 print(processor.positions.get(transaction.symbol))
 
-        # Display final positions
-        ui.display_positions(list(processor.positions.values()))
+        positions = list(processor.positions.values())
+        # Show interactive positions view
+        if isinstance(ui, CLI):
+            # Re-initialize CLI with processor and transactions to allow future reuse if needed
+            ui = CLI(plan=plan, processor=processor, transactions=transactions)
+            ui.run_positions_view(positions)
+        else:
+            # Fallback to simple display if not CLI instance
+            print("\n📊 Portfolio Summary:")
+            print(f"Total Positions: {len(positions)}")
 
 
 if __name__ == "__main__":
