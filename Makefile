@@ -2,7 +2,7 @@
 install: ## Install the virtual environment and install the pre-commit hooks
 	@echo "🚀 Creating virtual environment using uv"
 	@uv sync
-	@uvx pre-commit install
+	@uv run pre-commit install
 
 .PHONY: check
 check: ## Run code quality tools.
@@ -16,7 +16,7 @@ check: ## Run code quality tools.
 .PHONY: test
 test: ## Test the code with pytest
 	@echo "🚀 Testing code: Running pytest"
-	@uvx pytest --doctest-modules -o log_cli=true -o log_level=DEBUG
+	@uv run pytest --doctest-modules -o log_cli=true -o log_level=DEBUG
 
 .PHONY: build
 build: clean-build ## Build wheel file
